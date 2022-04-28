@@ -295,6 +295,7 @@ function _update()
 	        end
 
 	  	    if complete then
+	  	    	comboSounds[math.min(combo, 4)]:stop()
 	  	    	completedLine = true
 
 	  	    	completedLines += 1
@@ -317,8 +318,8 @@ function _update()
 
 		        --synth:setWaveform(sound.kWaveSquare)
 		        --synth:setADSR(0, 0, 0.5, 0.05)
-		        --synth:playNote("C5", 0.5, 0.001)
-		        comboSounds[math.min(combo, 4)]:restart()
+		        --synth:playNote("C5", 0.5, 0.001)		    
+		        comboSounds[math.min(combo, 4)]:play()
 		        combo += 1
 
 		        clearedLines += 1
@@ -328,7 +329,9 @@ function _update()
 	      if clearedLines >= 4 then -- unlikely to be bigger than 4 but idc
 	      	-- and at this point the only
 	      	-- combo sound playing is the fourth one
-	      	comboSounds[4]:stop()
+	      	for i=1, 4 do
+	      		comboSounds[i]:stop()
+	      	end
 	      	tetrisSound:play()
 	      	if sash then table.insert(sashes, Sash("Tetris!")) end
 	      end
