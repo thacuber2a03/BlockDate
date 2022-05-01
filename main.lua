@@ -20,78 +20,50 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
--- Please note that this code is a disaster.
-
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
+
 import "pieces"
+import "wallkickdata"
+
 import "effects/endline"
 import "effects/clearline"
 import "effects/sash"
 
 local gfx     <const> = playdate.graphics
+local snd     <const> = playdate.sound
 local geom    <const> = playdate.geometry
-local sound   <const> = playdate.sound
 local time    <const> = playdate.timer
 local data    <const> = playdate.datastore
 local disp    <const> = playdate.display
 local easings <const> = playdate.easingFunctions
 
+local btn  <const> = playdate.buttonIsPressed
+local btnp <const> = playdate.buttonJustPressed
+local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
+
+-- Save data
+
 -- If there's no game data available make some
 savedData = data.read("gamedata") or {}
 
-function loadData(key)
+local function loadData(key)
 	return savedData[key]
 end
 
-function saveData(key, value)
+local function saveData(key, value)
 	savedData[key] = value
 end
 
-function commitSaveData()
+local function commitSaveData()
 	-- pretty print cuz why not
 	data.write(savedData, "gamedata", true)
 end
 
-introRectT = time.new(100, 400, 0, easings.outCubic)
+-- Utils
 
-function newPiece()
-	piece = {
-		x = 3,
-		y = 0,
-		rotation = 0,
-		type = table.remove(sequence),
-	}
-	pieceHasChanged = true
-
-	if #sequence == 0 then newSequence() end
-end
-
-function newSequence()
-	sequence = {}
-	for i = 1, #pieceStructures do
-		table.insert(sequence, random(#sequence + 1), i)
-	end
-end
-
---[[
-function getDeltaTime()
-	local dt = 0
-
-	if not lastTime then
-		lastTime = playdate.getElapsedTime()
-	else
-		local curTime = playdate.getElapsedTime()
-		dt = curTime - lastTime
-		lastTime = curTime
-	end
-
-	return dt
-end
---]]
-
-function random(min, max, float)
+local function random(min, max, float)
 	math.randomseed(playdate.getSecondsSinceEpoch())
 
 	if not min then return math.random() end
@@ -101,45 +73,126 @@ function random(min, max, float)
 	else return min + (max - min) * math.random() end
 end
 
-function canPieceMove(testX, testY, testRotation)
+SOUNDSDIR = "assets/sounds/"
+local function loadSound(name)
+	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
+end
+
+local function loadMusic(name)
+	return assert(snd.fileplayer.new(SOUNDSDIR..name))
+end
+
+IMAGESDIR = "assets/images/"
+local function loadImage(name)
+	return assert(gfx.image.new(IMAGESDIR..name))
+end
+
+-- Game related functions
+
+local function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
 		for x=1, pieceXCount do
-	  	local testBlockX = testX + x
-	  	local testBlockY = testY + y
-	    if pieceStructures[piece.type][testRotation+1][y][x] ~= ' ' and (
-	    	testBlockX < 1
-	    	or testBlockX > gridXCount or testBlockY > gridYCount
-	    	or inert[testBlockY][testBlockX] ~= " "
-	    ) then return false end
+			local testBlockX = testX + x
+			local testBlockY = testY + y
+			if pieceStructures[piece.type][testRotation+1][y][x] ~= ' ' and (
+				testBlockX < 1 or testBlockX > gridXCount
+				or testBlockY > gridYCount
+				or inert[testBlockY][testBlockX] ~= " "
+			) then
+				return false
+			end
 		end
 	end
 	return true
 end
 
-function drawBlock(block, x, y)
+local function newSequence()
+	sequence = {}
+	for i = 1, #pieceStructures do
+		table.insert(sequence, random(#sequence + 1), i)
+	end
+end
+
+local function newPiece(type)
+	piece = {
+		x = 3,
+		y = 0,
+		rotation = 0,
+		type = type,
+	}
+	ghostPieceY = piece.y
+	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
+		ghostPieceY += 1
+	end
+	pieceHasChanged = true
+
+	if #sequence == 0 then newSequence() end
+end
+
+local function drawBlock(block, x, y)
 	local rect = geom.rect.new(
 		(x-1)*blockSize,
 		(y-1)*blockSize,
 		blockSize - 1,
 		blockSize - 1
-	)
+		)
 	
 	gfx[(block == '*' and "fillRect" or "drawRect")](rect)
 end
 
-function addPieceToInertGrid()
-	loopThroughBlocks(function(block, x, y)
-		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
-	end)
-end
-
-function loopThroughBlocks(func)
+local function loopThroughBlocks(func)
 	for y=1, pieceYCount do
 		for x=1, pieceXCount do
 			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
 		end
 	end
 end
+
+local function addPieceToInertGrid()
+	loopThroughBlocks(function(block, x, y)
+		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
+	end)
+end
+
+local function rotate(rotation)
+	ghostPieceY = piece.y
+	local testRotation = piece.rotation + rotation
+	testRotation %= #pieceStructures[piece.type]
+
+	-- Implementing this took too much brain energy from me :(
+	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][testRotation + 1][(rotation==1 and 1 or 2)]
+	for i=1, #chosenWallKickTests do
+		local testX = piece.x+chosenWallKickTests[i][1]
+		local testY = piece.y+chosenWallKickTests[i][2]
+		if canPieceMove(piece.x+chosenWallKickTests[i][1], piece.y-chosenWallKickTests[i][2], testRotation) then
+			piece.x = testX
+			piece.y = testY
+			piece.rotation = testRotation
+			break
+		end
+	end
+
+	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
+		ghostPieceY += 1
+	end
+end
+
+local function move(direction)
+	ghostPieceY = piece.y
+	local testX = piece.x + direction
+
+	if canPieceMove(testX, piece.y, piece.rotation) then
+		piece.x = testX
+	end
+
+	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
+		ghostPieceY += 1
+	end
+end
+
+-- Init
+
+introRectT = time.new(100, 400, 0, easings.outCubic)
 
 gridXCount, gridYCount = 10, 18
 
@@ -152,26 +205,34 @@ blockSize = 11
 
 highscore = loadData("highscore") or 0
 
-shake, sash = true, true
+shake, sash, ghost = true, true, true
 
-playdate.getSystemMenu():addCheckmarkMenuItem("shake", true, function(val) shake = val end)
-playdate.getSystemMenu():addCheckmarkMenuItem("sash", true, function(val) sash = val end)
-
---synth = sound.synth.new()
-
-SOUNDSDIR = "assets/sounds/"
-function loadSound(name)
-	return assert(playdate.sound.sampleplayer.new(SOUNDSDIR..name))
-end
+-- sounds
 
 comboSounds = {}
-for i=1, 4 do
-	table.insert(comboSounds, loadSound("combo"..i))
+for i=1, 4 do table.insert(comboSounds, loadSound("combo"..i)) end
+local function stopAllComboSounds()
+	for i=1, 4 do
+		if comboSounds[i]:isPlaying() then comboSounds[i]:stop() end
+	end
 end
+
 dropSound = loadSound("drop")
 tetrisSound = loadSound("tetris")
+holdSound = loadSound("hold")
 
-playdate.inputHandlers.push({
+menuScrollSound = loadSound("menu-scroll")
+menuClickSound = loadSound("menu-click")
+
+-- images
+
+nextFrameImage = loadImage("next-frame")
+holdFrameImage = loadImage("hold-frame")
+
+crossmarkFieldImage = loadImage("crossmark-field")
+crossmarkImage = loadImage("crossmark")
+
+local inputHandlers	= {
 	upButtonDown = function()
 		if not lost then
 			local dist = 0
@@ -179,80 +240,62 @@ playdate.inputHandlers.push({
 				piece.y += 1
 				dist += 1
 			end
-			--synth:setWaveform(sound.kWaveSquare)
-	    --synth:setADSR(0, 0, 0.5, 0.05)
-	    --synth:playNote("C3", 0.5, 0.001)
-	    dropSound:play()
+			dropSound:play()
 			timer = timerLimit
 			if shake then displayYPos = dist*1.25 end
 		end
 	end,
-	AButtonDown = function() rotate(-1) end,
-	BButtonDown = function() rotate(1) end
-})
+	-- Skip the O piece when rotating.
+	AButtonDown = function()
+		if playdate.isCrankDocked() and piece.type ~= 2 then rotate(1) end
+	end,
+	BButtonDown = function()
+		if playdate.isCrankDocked() and piece.type ~= 2 then rotate(-1) end
+	end
+}
 
-function rotate(rotation)
-	local testRotation = piece.rotation + rotation
-	testRotation %= #pieceStructures[piece.type]
-
-  if canPieceMove(piece.x, piece.y, testRotation) then
-    piece.rotation = testRotation
-  end
-end
-
-function move(direction)
-	local testX = piece.x + direction
-
-  if canPieceMove(testX, piece.y, piece.rotation) then
-    piece.x = testX
-  end
-end
-
-function reset()
+local function reset()
 	levelIncreased = false
 	displayYPos = 0
 	completedLines = 0
-	combo = 1
-	level = 1
+	combo, level = 1, 1
 	lostY = 1
 	lost = false
 	clearLines, lines, sashes = {}, {}, {}
 	holdDir = 0
+	heldPiece = nil
 	pieceHasChanged = false
 
-	leftUIT = playdate.timer.new(500, -4, 8, easings.outCubic)
+	UITimer = time.new(500, -4, 8, easings.outCubic)
 
-  inert = {}
+	inert = {}
 	for y = 1, gridYCount do
-    inert[y] = {}
-    for x = 1, gridXCount do
-      inert[y][x] = ' '
-    end
-  end
+		inert[y] = {}
+		for x = 1, gridXCount do
+			inert[y][x] = ' '
+		end
+	end
 
-  newSequence()
-	newPiece()
+	playdate.inputHandlers.push(inputHandlers)
 
-  timer = 0
-  score = 0
+	newSequence()
+	newPiece(table.remove(sequence))
+
+	timer = 0
+	score = 0
 end
 
-function holdDirection(dir)
+local function holdDirection(dir)
 	if holdDir == 0 or holdDir > 5 then move(dir) end
 	holdDir += 1
 end
 
 reset()
 
-function playdate.update()
-	_update()
-	_draw()
-end
-
-function _update()
+local function updateGame()
 	if not lost then
 		local crankTicks = playdate.getCrankTicks(4)
-		if crankTicks ~= 0 then rotate(-crankTicks) end
+		if crankTicks ~= 0 then rotate(crankTicks) end
 
 		if score > highscore then
 			saveData("highscore", score)
@@ -260,15 +303,30 @@ function _update()
 		end
 
 		timerLimit = 30
-		if playdate.buttonIsPressed("down") and not pieceHasChanged then
+		if btn("down") and not pieceHasChanged then
 			timerLimit = 0
-		elseif not playdate.buttonIsPressed("down") then
+		elseif not btn("down") then
 			pieceHasChanged = false
 		end
 
-		if playdate.buttonIsPressed("right") then holdDirection(1)
-		elseif playdate.buttonIsPressed("left") then holdDirection(-1)
+		if btn("right") then holdDirection(1)
+		elseif btn("left") then holdDirection(-1)
 		else holdDir = 0 end
+
+		if (btn("a") and btn("b")) and not hasHeldPiece then
+			local nextType
+			if not heldPiece then
+				heldPiece = piece.type
+				nextType = table.remove(sequence)
+			else
+				local temp = heldPiece
+				heldPiece = piece.type
+				nextType = temp
+			end
+			newPiece(nextType)
+			hasHeldPiece = true
+			holdSound:play()
+		end
 
 		timer += level
 		if timer >= timerLimit then
@@ -286,71 +344,65 @@ function _update()
 				local clearedLines = 0
 				for y = 1, gridYCount do
 
-	        local complete = true
-	        for x = 1, gridXCount do
-	          if inert[y][x] == ' ' then
-	            complete = false
-	            break
-	          end
-	        end
+					local complete = true
+					for x = 1, gridXCount do
+						if inert[y][x] == ' ' then
+							complete = false
+							break
+						end
+					end
 
-	  	    if complete then
-	  	    	comboSounds[math.min(combo, 4)]:stop()
-	  	    	completedLine = true
+					if complete then
+						completedLine = true
 
-	  	    	completedLines += 1
-	  	    	if completedLines ~= 0 and completedLines%10 == 0 and not levelIncreased then
+						completedLines += 1
+						if completedLines ~= 0 and completedLines%10 == 0 and not levelIncreased then
 							levelIncreased = true
 							level += 1
 						elseif completedLines%10 ~= 0 then levelIncreased = false end
 
-	  	    	table.insert(clearLines, ClearLine(y+1))
-		        for removeY = y, 2, -1 do
-		        	for removeX = 1, gridXCount do
-		        		inert[removeY][removeX] =
-		        		inert[removeY - 1][removeX]
-		        	end
-		        end
+						table.insert(clearLines, ClearLine(y+1))
+						for removeY = y, 2, -1 do
+							for removeX = 1, gridXCount do
+								inert[removeY][removeX] =
+								inert[removeY - 1][removeX]
+							end
+						end
 
-		        for removeX = 1, gridXCount do inert[1][removeX] = " " end
+						for removeX = 1, gridXCount do inert[1][removeX] = " " end
 
-		        score += 10 * combo
+						score += 10 * combo
 
-		        --synth:setWaveform(sound.kWaveSquare)
-		        --synth:setADSR(0, 0, 0.5, 0.05)
-		        --synth:playNote("C5", 0.5, 0.001)		    
-		        comboSounds[math.min(combo, 4)]:play()
-		        combo += 1
+						--synth:setWaveform(sound.kWaveSquare)
+						--synth:setADSR(0, 0, 0.5, 0.05)
+						--synth:playNote("C5", 0.5, 0.001)
+						stopAllComboSounds()
+						comboSounds[math.min(combo, 4)]:play()
+						combo += 1
 
-		        clearedLines += 1
-			    end
-	      end
+						clearedLines += 1
+					end
+				end
 
-	      if clearedLines >= 4 then -- unlikely to be bigger than 4 but idc
-	      	-- and at this point the only
-	      	-- combo sound playing is the fourth one
-	      	for i=1, 4 do
-	      		comboSounds[i]:stop()
-	      	end
-	      	tetrisSound:play()
-	      	if sash then table.insert(sashes, Sash("Tetris!")) end
-	      end
+				if clearedLines >= 4 then -- unlikely to be bigger than 4 but idc
+					stopAllComboSounds()
+					tetrisSound:play()
+					if sash then table.insert(sashes, Sash("4-line clear!")) end
+				end
 
-	      if not completedLine then
-	      	--synth:setWaveform(sound.kWaveSquare)
-		      --synth:setADSR(0, 0, 0.5, 0.05)
-		      --synth:playNote("C3", 0.5, 0.001)
-		      dropSound:stop()
-		      dropSound:play()
-		      combo = 1
-		    end
+				if not completedLine then
+					dropSound:play()
+					combo = 1
+				end
 
-				newPiece()
+				newPiece(table.remove(sequence))
+				hasHeldPiece = false
 
 				if not canPieceMove(piece.x, piece.y, piece.rotation) then
 					timer = 0
 					lost = true
-					leftUIT = playdate.timer.new(500, 8, -4, easings.outCubic)
+					UITimer = time.new(500, 8, -4, easings.outCubic)
+					playdate.inputHandlers.pop()
 				end -- check if lost
 			end -- complete a row
 		end -- timer is over timerLimit
@@ -360,26 +412,21 @@ function _update()
 			for i=1, gridXCount do inert[lostY][i] = ' ' end
 			table.insert(lines, EndLine((lostY-1)+offsetY))
 
-			--synth:setWaveform(sound.kWaveSquare)
-			--synth:setADSR(0, 0, 0.2, 0.1)
-			--synth:playNote("C5", 0.5, 0.00001)
-
 			if lostY < gridYCount then lostY += 1
 			else e = true end
 		else
 			if #lines == 0 then
 				e = false
+				commitSaveData()
 				reset()
 			end
 		end
 	end -- state machine
 end
 
-function _draw()
+local function drawGame()
 	gfx.pushContext()
 	gfx.clear(gfx.kColorWhite)
-
-	gfx.fillRect(0, 0, 400, introRectT.value)
 
 	if displayYPos ~= 0 then
 		displayYPos+=((0-displayYPos)*0.25)
@@ -388,7 +435,9 @@ function _draw()
 	end
 
 	local function updateEffect(t,i,l)
-		if l.dead then pcall(function() table.remove(t, i) end) else
+		if l.dead then
+			pcall(function() table.remove(t, i) end)
+		else
 			l:update()
 			l:draw()
 		end
@@ -402,41 +451,212 @@ function _draw()
 		end
 	end
 
-	for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
-
-	loopThroughBlocks(function(block, x, y)
+	loopThroughBlocks(function(_, x, y)
 		if not lost then
 			local block = pieceStructures[piece.type][piece.rotation+1][y][x]
 			if block ~= ' ' then
+				if ghost then
+					gfx.setPattern({0x33, 0x33, 0xCC, 0xCC, 0x33, 0x33, 0xCC, 0xCC})
+					drawBlock(block, x + piece.x + offsetX, y + ghostPieceY + offsetY)
+					gfx.setPattern({0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0})
+				end
 				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY)
 			end
 		end
 	end)
 
+	for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
+
 	gfx.setDrawOffset(0,0)
 
+	nextFrameImage:drawCentered((UITimer.value-1)*blockSize-1, 5*blockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local block = pieceStructures[sequence[#sequence]][1][y][x]
 		if block ~= ' ' then
-			drawBlock('*', x+(leftUIT.value-2.5), y+4)
+			local acp = sequence[#sequence] ~= 1 and sequence[#sequence] ~= 2
+			drawBlock('*', x+(UITimer.value-(acp and 2.5 or 3)), y+(acp and 4 or 3))
 		end
 	end)
 
-	local bold = gfx.getSystemFont("bold")
-	gfx.drawText("*Score*", (leftUIT.value-3)*blockSize, 9*blockSize)
-	gfx.drawText("*"..score.."*", (leftUIT.value-3.5)*blockSize+bold:getTextWidth("Score")/2, 11*blockSize)
-	gfx.drawText("*Highscore*", (leftUIT.value-4.5)*blockSize, 13*blockSize)
-	gfx.drawText("*"..highscore.."*", (leftUIT.value-5.5)*blockSize+bold:getTextWidth("Highscore")/2, 15*blockSize)
+	holdFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
+	if heldPiece then
+		loopThroughBlocks(function(_, x, y)
+			local block = pieceStructures[heldPiece][1][y][x]
+			if block ~= ' ' then
+				drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+2), y+3)
+			end
+		end)
+	end
 
-	gfx.drawText("*Level*", disp.getWidth()-(leftUIT.value+2)*blockSize, 7*blockSize)
-	gfx.drawText("*"..math.floor(level).."*", (disp.getWidth()+bold:getTextWidth(level)/2)-(leftUIT.value+0.5)*blockSize, 9*blockSize)
-	gfx.drawText("*Lines*", disp.getWidth()-(leftUIT.value+2)*blockSize, 11*blockSize)
-	gfx.drawText("*"..completedLines.."*", (disp.getWidth()+bold:getTextWidth(completedLines)/2)-(leftUIT.value+1)*blockSize, 13*blockSize)
-	gfx.popContext()
+	local bold = gfx.getSystemFont("bold")
+	gfx.drawText("*Score*", (UITimer.value-3)*blockSize, 9*blockSize)
+	gfx.drawText("*"..score.."*", (UITimer.value-1)*blockSize-bold:getTextWidth(score)/2, 11*blockSize)
+	gfx.drawText("*Highscore*", (UITimer.value-4.5)*blockSize, 13*blockSize)
+	gfx.drawText("*"..highscore.."*", (UITimer.value-1)*blockSize-bold:getTextWidth(highscore)/2, 15*blockSize)
+
+	gfx.drawText("*Level*", dwidth-(UITimer.value+2)*blockSize, 9*blockSize)
+	gfx.drawText("*"..level.."*", (dwidth+bold:getTextWidth(level)/2)-(UITimer.value+0.5)*blockSize, 11*blockSize)
+	gfx.drawText("*Lines*", dwidth-(UITimer.value+2)*blockSize, 13*blockSize)
+	gfx.drawText("*"..completedLines.."*", (dwidth-bold:getTextWidth(completedLines)/2)-(UITimer.value)*blockSize, 15*blockSize)
 
 	for i, s in ipairs(sashes) do updateEffect(sashes, i, s) end
 
-	playdate.timer.updateTimers()
+	gfx.fillRect(0, 0, 400, introRectT.value)
+
+	gfx.popContext()
+
+	time.updateTimers()
+end
+
+local _update, _draw = updateGame, drawGame
+
+local patternTimer
+
+local patterns = {
+	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0}, -- white
+	{0xFF, 0xDD, 0xFF, 0x77, 0xFF, 0xDD, 0xFF, 0x77, 0, 34, 0, 136, 0, 34, 0, 136}, -- lightgray 1
+	{0x77, 0x77, 0xDD, 0xDD, 0x77, 0x77, 0xDD, 0xDD, 136, 136, 34, 34, 136, 136, 34, 34}, -- lightgray 2
+	{0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 170, 85, 170, 85, 170, 85, 170, 85}, -- gray
+}
+
+local menu = {
+	{
+		name = "Continue",
+		type = "button",
+		onpress = function()
+			-- Sorry, I love back easing XD
+			menuYTimer = time.new(250, dheight/2, dheight, easings.inBack)
+			patternTimer = time.new(250, #patterns, 1,easings.inBack)
+		end,
+	},
+	{
+		name = "Ghost",
+		type = "crossmark",
+		state = true,
+		ontoggle = function(val)
+			ghost = val
+		end,
+	},
+	{
+		name = "Shake",
+		type = "crossmark",
+		state = true,
+		ontoggle = function(val)
+			shake = val
+		end,
+	},
+	{
+		name = "Sash",
+		type = "crossmark",
+		state = true,
+		ontoggle = function(val)
+			sash = val
+		end,
+	},
+}
+
+function updateMenu()
+	if btnp("down") then
+		menuScrollSound:play()
+		menuCursor += 1
+	elseif btnp("up") then
+		menuCursor -= 1
+		menuScrollSound:play()
+	end
+	menuCursor %= #menu
+	
+	if btnp("a") then
+		local menuItem = menu[menuCursor+1]
+		if menuItem.type == "button" then
+			menuItem.onpress()
+		elseif menuItem.type == "crossmark" then
+			menuItem.state = not menuItem.state
+			menuItem.ontoggle(menuItem.state)
+		end
+		menuClickSound:play()
+	end
+	if menuYTimer.value == dheight then
+		playdate.inputHandlers.push(inputHandlers)
+		_update = updateGame
+		_draw = drawGame
+	end
+	time.updateTimers()
+end
+
+function drawMenu()
+	gfx.pushContext()
+  backgroundImage:draw(0, 0)
+  gfx.setPattern(patterns[math.floor(patternTimer.value)])
+  gfx.fillRect(0, 0, dwidth, dheight)
+  gfx.setPattern(patterns[1])
+
+  local rect = geom.rect.new(
+  	dwidth/2-(menuWidth/2+10),
+  	menuYTimer.value-(menuHeight/2+10),
+  	menuWidth+20, menuHeight+20
+  )
+  local rad = 5
+	gfx.setColor(gfx.kColorWhite)
+	gfx.fillRoundRect(rect, rad)
+	gfx.setColor(gfx.kColorBlack)
+	gfx.drawRoundRect(rect, rad)
+
+	local bheight = bold:getHeight()
+	for i, v in ipairs(menu) do
+		gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
+		if v.type == "crossmark" then
+			-- _ is a throwaway variable. Just using it to get cheight.
+			local _, cheight = crossmarkFieldImage:getSize()
+			local pos = geom.point.new(
+				dwidth/2-menuWidth/2+bold:getTextWidth(v.name)+10,
+				menuYTimer.value-menuHeight/2+((i-1)*bheight)+cheight/2
+			)
+			crossmarkFieldImage:drawCentered(pos:unpack())
+			if v.state then crossmarkImage:drawCentered(pos:unpack()) end
+		end
+	end
+
+	gfx.drawRect(
+		dwidth/2-(menuWidth/2+5),
+		((menuYTimer.value-menuHeight/2)+menuCursor*bheight)-2.5,
+  	menuWidth+10, bheight, 2
+	)
+	gfx.popContext()
+end
+
+-- Playdate stuff
+
+playdate.getSystemMenu():addMenuItem("options", function()
+	bold = gfx.getSystemFont("bold")
+	menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
+	menuHeight = #menu*bold:getHeight()
+	longestString = ""
+	for k, v in pairs(menu) do
+		if #v.name > #longestString then
+			longestString = v.name
+		end
+	end
+
+	-- playdate.graphics.image:getSize() returns two values. By using it like this,
+	-- I am taking the first value and discarding the rest,
+	-- the first value being the width, which is what i need.
+	menuWidth = bold:getTextWidth(longestString) + crossmarkFieldImage:getSize()
+	menuCursor = 1
+
+	backgroundImage = gfx.image.new(dwidth, dheight)
+	gfx.pushContext(backgroundImage)
+	drawGame()
+	gfx.popContext()
+
+	playdate.inputHandlers.pop()
+	patternTimer = time.new(250, 1, #patterns, easings.outBack)
+	_update = updateMenu
+	_draw = drawMenu
+end)
+
+function playdate.update()
+	_update()
+	_draw()
 end
 
 function playdate.gameWillTerminate() commitSaveData() end
@@ -446,9 +666,7 @@ function playdate.deviceWillSleep() commitSaveData() end
 -- Debug
 function playdate.keyPressed(key)
 	if key == "L" then
-		for i=1, 4 do
-			table.remove(inert)
-		end
+		for i=1, 4 do table.remove(inert) end
 		for i=1, 4 do
 			table.insert(inert, (function()
 				local almostFull = {}
