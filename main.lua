@@ -78,6 +78,8 @@ local function loadSound(name)
 	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
 end
 
+-- not yet used but will use...
+-- at some point
 local function loadMusic(name)
 	return assert(snd.fileplayer.new(SOUNDSDIR..name))
 end
@@ -87,6 +89,10 @@ local function loadImage(name)
 	return assert(gfx.image.new(IMAGESDIR..name))
 end
 
+local function loadImagetable(name)
+	return assert(gfx.imagetable.new(IMAGESDIR..name))
+end
+
 -- Game related functions
 
 local function canPieceMove(testX, testY, testRotation)
@@ -94,6 +100,7 @@ local function canPieceMove(testX, testY, testRotation)
 		for x=1, pieceXCount do
 			local testBlockX = testX + x
 			local testBlockY = testY + y
+			if not inert[testY+1] then return false end
 			if pieceStructures[piece.type][testRotation+1][y][x] ~= ' ' and (
 				testBlockX < 1 or testBlockX > gridXCount
 				or testBlockY > gridYCount
@@ -125,7 +132,6 @@ local function newPiece(type)
 		ghostPieceY += 1
 	end
 	pieceHasChanged = true
-
 	if #sequence == 0 then newSequence() end
 end
 
@@ -133,11 +139,15 @@ local function drawBlock(block, x, y)
 	local rect = geom.rect.new(
 		(x-1)*blockSize,
 		(y-1)*blockSize,
-		blockSize - 1,
-		blockSize - 1
-		)
+		blockSize-1,
+		blockSize-1
+	)
 	
-	gfx[(block == '*' and "fillRect" or "drawRect")](rect)
+	gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+end
+
+local function drawTexturedBlock(image, x, y)
+	image:draw((x-1)*blockSize, (y-1)*blockSize)
 end
 
 local function loopThroughBlocks(func)
@@ -164,7 +174,7 @@ local function rotate(rotation)
 	for i=1, #chosenWallKickTests do
 		local testX = piece.x+chosenWallKickTests[i][1]
 		local testY = piece.y+chosenWallKickTests[i][2]
-		if canPieceMove(piece.x+chosenWallKickTests[i][1], piece.y-chosenWallKickTests[i][2], testRotation) then
+		if canPieceMove(piece.x+chosenWallKickTests[i][1], piece.y+chosenWallKickTests[i][2], testRotation) then
 			piece.x = testX
 			piece.y = testY
 			piece.rotation = testRotation
@@ -232,6 +242,8 @@ holdFrameImage = loadImage("hold-frame")
 crossmarkFieldImage = loadImage("crossmark-field")
 crossmarkImage = loadImage("crossmark")
 
+ghostBlockImagetable = loadImagetable("ghost-block/ghost-block")
+
 local inputHandlers	= {
 	upButtonDown = function()
 		if not lost then
@@ -247,10 +259,10 @@ local inputHandlers	= {
 	end,
 	-- Skip the O piece when rotating.
 	AButtonDown = function()
-		if playdate.isCrankDocked() and piece.type ~= 2 then rotate(1) end
+		if not lost then if piece.type ~= 2 then rotate(1) end end
 	end,
 	BButtonDown = function()
-		if playdate.isCrankDocked() and piece.type ~= 2 then rotate(-1) end
+		if not lost then if piece.type ~= 2 then rotate(-1) end end
 	end
 }
 
@@ -275,6 +287,7 @@ local function reset()
 			inert[y][x] = ' '
 		end
 	end
+	assert(inert)
 
 	playdate.inputHandlers.push(inputHandlers)
 
@@ -283,6 +296,7 @@ local function reset()
 
 	timer = 0
 	score = 0
+	scoreGoal = score
 end
 
 local function holdDirection(dir)
@@ -297,9 +311,14 @@ local function updateGame()
 		local crankTicks = playdate.getCrankTicks(4)
 		if crankTicks ~= 0 then rotate(crankTicks) end
 
-		if score > highscore then
-			saveData("highscore", score)
-			highscore = score
+		if scoreGoal ~= score then
+			score += (scoreGoal - score) * .25
+			if scoreGoal - score < 1 then score = scoreGoal end
+		end
+
+		if scoreGoal > highscore then
+			saveData("highscore", scoreGoal)
+			highscore = scoreGoal
 		end
 
 		timerLimit = 30
@@ -371,7 +390,7 @@ local function updateGame()
 
 						for removeX = 1, gridXCount do inert[1][removeX] = " " end
 
-						score += 10 * combo
+						scoreGoal += 10 * combo
 
 						--synth:setWaveform(sound.kWaveSquare)
 						--synth:setADSR(0, 0, 0.5, 0.05)
@@ -384,10 +403,29 @@ local function updateGame()
 					end
 				end
 
+				local allclear = true
+				for y = 1, gridYCount do
+					for x = 1, gridXCount do
+						if inert[y][x] ~= " " then
+							-- Exit both loops if found a block
+							allclear = false
+							break
+						end
+					end
+					-- I said both
+					if not allclear then break end
+				end
+
+
 				if clearedLines >= 4 then -- unlikely to be bigger than 4 but idc
 					stopAllComboSounds()
 					tetrisSound:play()
-					if sash then table.insert(sashes, Sash("4-line clear!")) end
+					if sash then table.insert(sashes, Sash("4-line Clear!")) end
+				end
+
+				if allclear and sash then
+					scoreGoal += 25 * combo
+					table.insert(sashes, Sash("All clear!"))
 				end
 
 				if not completedLine then
@@ -434,12 +472,12 @@ local function drawGame()
 		gfx.setDrawOffset(0,displayYPos)
 	end
 
-	local function updateEffect(t,i,l)
-		if l.dead then
+	local function updateEffect(t,i,e)
+		if e.dead then
 			pcall(function() table.remove(t, i) end)
 		else
-			l:update()
-			l:draw()
+			e:update()
+			e:draw()
 		end
 	end
 
@@ -455,12 +493,14 @@ local function drawGame()
 		if not lost then
 			local block = pieceStructures[piece.type][piece.rotation+1][y][x]
 			if block ~= ' ' then
-				if ghost then
-					gfx.setPattern({0x33, 0x33, 0xCC, 0xCC, 0x33, 0x33, 0xCC, 0xCC})
-					drawBlock(block, x + piece.x + offsetX, y + ghostPieceY + offsetY)
-					gfx.setPattern({0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0})
-				end
 				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY)
+				if ghost then
+					local _, millis = playdate.getSecondsSinceEpoch()
+					drawTexturedBlock(
+						ghostBlockImagetable:getImage(1+math.floor(millis/100%#ghostBlockImagetable)),
+						x + piece.x + offsetX, y + ghostPieceY + offsetY
+					)
+				end
 			end
 		end
 	end)
@@ -469,37 +509,38 @@ local function drawGame()
 
 	gfx.setDrawOffset(0,0)
 
-	nextFrameImage:drawCentered((UITimer.value-1)*blockSize-1, 5*blockSize-1)
+	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local block = pieceStructures[sequence[#sequence]][1][y][x]
 		if block ~= ' ' then
 			local acp = sequence[#sequence] ~= 1 and sequence[#sequence] ~= 2
-			drawBlock('*', x+(UITimer.value-(acp and 2.5 or 3)), y+(acp and 4 or 3))
+			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+(acp and 1.5 or 2)), y+(acp and 4 or 3))
 		end
 	end)
 
-	holdFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
+	holdFrameImage:drawCentered((UITimer.value)*blockSize, 5*blockSize-1)
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
-				drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+2), y+3)
+				local acp = heldPiece ~= 1 and held ~= 2
+				drawBlock('*', x+(UITimer.value-(acp and 1.5 or 2)), y+(acp and 4 or 3))
 			end
 		end)
 	end
 
 	local bold = gfx.getSystemFont("bold")
-	gfx.drawText("*Score*", (UITimer.value-3)*blockSize, 9*blockSize)
-	gfx.drawText("*"..score.."*", (UITimer.value-1)*blockSize-bold:getTextWidth(score)/2, 11*blockSize)
-	gfx.drawText("*Highscore*", (UITimer.value-4.5)*blockSize, 13*blockSize)
-	gfx.drawText("*"..highscore.."*", (UITimer.value-1)*blockSize-bold:getTextWidth(highscore)/2, 15*blockSize)
+	gfx.drawText("*Score*", (UITimer.value-2)*blockSize, 9*blockSize)
+	gfx.drawText("*"..math.floor(score).."*", (UITimer.value)*blockSize-bold:getTextWidth(math.floor(score))/2, 11*blockSize)
+	gfx.drawText("*Highscore*", (UITimer.value-3.5)*blockSize, 13*blockSize)
+	gfx.drawText("*"..highscore.."*", (UITimer.value)*blockSize-bold:getTextWidth(highscore)/2, 15*blockSize)
 
 	gfx.drawText("*Level*", dwidth-(UITimer.value+2)*blockSize, 9*blockSize)
 	gfx.drawText("*"..level.."*", (dwidth+bold:getTextWidth(level)/2)-(UITimer.value+0.5)*blockSize, 11*blockSize)
 	gfx.drawText("*Lines*", dwidth-(UITimer.value+2)*blockSize, 13*blockSize)
 	gfx.drawText("*"..completedLines.."*", (dwidth-bold:getTextWidth(completedLines)/2)-(UITimer.value)*blockSize, 15*blockSize)
 
-	for i, s in ipairs(sashes) do updateEffect(sashes, i, s) end
+	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
 	gfx.fillRect(0, 0, 400, introRectT.value)
 
@@ -556,25 +597,28 @@ local menu = {
 }
 
 function updateMenu()
-	if btnp("down") then
-		menuScrollSound:play()
-		menuCursor += 1
-	elseif btnp("up") then
-		menuCursor -= 1
-		menuScrollSound:play()
-	end
-	menuCursor %= #menu
-	
-	if btnp("a") then
-		local menuItem = menu[menuCursor+1]
-		if menuItem.type == "button" then
-			menuItem.onpress()
-		elseif menuItem.type == "crossmark" then
-			menuItem.state = not menuItem.state
-			menuItem.ontoggle(menuItem.state)
+	if menuYTimer.value == dheight/2 then
+		if btnp("down") then
+			menuScrollSound:play()
+			menuCursor += 1
+		elseif btnp("up") then
+			menuCursor -= 1
+			menuScrollSound:play()
 		end
-		menuClickSound:play()
+		menuCursor %= #menu
+		
+		if btnp("a") then
+			local menuItem = menu[menuCursor+1]
+			if menuItem.type == "button" then
+				menuItem.onpress()
+			elseif menuItem.type == "crossmark" then
+				menuItem.state = not menuItem.state
+				menuItem.ontoggle(menuItem.state)
+			end
+			menuClickSound:play()
+		end
 	end
+
 	if menuYTimer.value == dheight then
 		playdate.inputHandlers.push(inputHandlers)
 		_update = updateGame
@@ -608,7 +652,7 @@ function drawMenu()
 			-- _ is a throwaway variable. Just using it to get cheight.
 			local _, cheight = crossmarkFieldImage:getSize()
 			local pos = geom.point.new(
-				dwidth/2-menuWidth/2+bold:getTextWidth(v.name)+10,
+				dwidth/2-menuWidth/2+bold:getTextWidth(v.name)+12.5,
 				menuYTimer.value-menuHeight/2+((i-1)*bheight)+cheight/2
 			)
 			crossmarkFieldImage:drawCentered(pos:unpack())
@@ -677,5 +721,13 @@ function playdate.keyPressed(key)
 				return almostFull
 			end)())
 		end
+	elseif key == "T" then
+		-- Generate a TSpin scenario
+		for i=1, 5 do table.remove(inert) end
+		table.insert(inert, {" ", " ", "*", " ", " ", " ", " ", "*", " ", " "})
+		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
+		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
+		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
+		table.insert(inert, {" ", " ", "*", " ", " ", " ", "*", "*", " ", " "})
 	end
 end
