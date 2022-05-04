@@ -488,7 +488,7 @@ local function drawGame()
 
 	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
-	if not gridy then gfx.drawRect(offsetX*blockSize, offsetY*blockSize, gridXCount*blockSize, gridYCount*blockSize) end
+	if not grid then gfx.drawRect(offsetX*blockSize, offsetY*blockSize, gridXCount*blockSize, gridYCount*blockSize) end
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
