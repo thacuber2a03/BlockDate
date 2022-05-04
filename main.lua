@@ -137,13 +137,11 @@ end
 
 local function drawBlock(block, x, y)
 	local rect = geom.rect.new(
-		(x-1)*blockSize,
-		(y-1)*blockSize,
-		blockSize-1,
-		blockSize-1
+		(x-1)*blockSize, (y-1)*blockSize,
+		blockSize-1, blockSize-1
 	)
-	
-	gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+	elseif block ~= " " then gfx.fillRect(rect) end
 end
 
 local function drawTexturedBlock(image, x, y)
@@ -215,7 +213,12 @@ blockSize = 11
 
 highscore = loadData("highscore") or 0
 
-shake, sash, ghost = true, true, true
+shake, sash, ghost, grid, darkMode =
+loadData("shake") or true,
+loadData("sash")  or true,
+loadData("ghost") or true,
+loadData("grid")  or false,
+loadData("darkMode") or false
 
 -- sounds
 
@@ -464,7 +467,9 @@ end
 
 local function drawGame()
 	gfx.pushContext()
-	gfx.clear(gfx.kColorWhite)
+	gfx.clear((darkMode and gfx.kColorBlack or gfx.kColorWhite))
+	playdate.drawFPS()
+	if darkMode then gfx.setColor(gfx.kColorWhite) end
 
 	if displayYPos ~= 0 then
 		displayYPos+=((0-displayYPos)*0.25)
@@ -482,6 +487,8 @@ local function drawGame()
 	end
 
 	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
+
+	if not gridy then gfx.drawRect(offsetX*blockSize, offsetY*blockSize, gridXCount*blockSize, gridYCount*blockSize) end
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
@@ -573,27 +580,48 @@ local menu = {
 	{
 		name = "Ghost",
 		type = "crossmark",
-		state = true,
+		state = ghost,
 		ontoggle = function(val)
 			ghost = val
+			saveData("ghost", ghost)
 		end,
 	},
 	{
 		name = "Shake",
 		type = "crossmark",
-		state = true,
+		state = shake,
 		ontoggle = function(val)
 			shake = val
+			saveData("shake", shake)
 		end,
 	},
 	{
 		name = "Sash",
 		type = "crossmark",
-		state = true,
+		state = sash,
 		ontoggle = function(val)
 			sash = val
+			saveData("sash", sash)
 		end,
 	},
+	{
+		name = "Grid",
+		type = "crossmark",
+		state = grid,
+		ontoggle = function(val)
+			grid = val
+			saveData("grid", grid)
+		end,
+	},
+	{
+		name = "Dark mode",
+		type = "crossmark",
+		state = darkMode,
+		ontoggle = function(val)
+			darkMode = val
+			saveData("darkMode", darkMode)
+		end,
+	}
 }
 
 function updateMenu()
@@ -616,6 +644,7 @@ function updateMenu()
 				menuItem.ontoggle(menuItem.state)
 			end
 			menuClickSound:play()
+			commitSaveData()
 		end
 	end
 
@@ -724,10 +753,10 @@ function playdate.keyPressed(key)
 	elseif key == "T" then
 		-- Generate a TSpin scenario
 		for i=1, 5 do table.remove(inert) end
-		table.insert(inert, {" ", " ", "*", " ", " ", " ", " ", "*", " ", " "})
-		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
-		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
-		table.insert(inert, {" ", " ", "*", "*", " ", " ", "*", "*", " ", " "})
-		table.insert(inert, {" ", " ", "*", " ", " ", " ", "*", "*", " ", " "})
+		table.insert(inert, {"*", "*", "*", "*", "*", " ", " ", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", " ", " ", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
 	end
 end
