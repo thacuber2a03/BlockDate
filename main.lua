@@ -142,8 +142,13 @@ local function drawBlock(block, x, y)
 		blockSize-1,
 		blockSize-1
 	)
-	
-	gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+	if block == " " then
+    if grid then
+		   gfx.drawRect(rect)
+		 end
+   else 
+		 gfx.fillRect(rect)
+   end
 end
 
 local function drawTexturedBlock(image, x, y)
@@ -215,8 +220,7 @@ blockSize = 11
 
 highscore = loadData("highscore") or 0
 
-shake, sash, ghost = true, true, true
-
+shake, sash, ghost, grid = true, true, true, true
 -- sounds
 
 comboSounds = {}
@@ -483,6 +487,10 @@ local function drawGame()
 
 	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
+	if not grid then
+	  drawPlayfieldBorder()
+  end
+
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
 			drawBlock(inert[y][x], x + offsetX, y + offsetY)
@@ -594,6 +602,14 @@ local menu = {
 			sash = val
 		end,
 	},
+	{
+		name = "Grid",
+		type = "crossmark",
+		state = true,
+		ontoggle = function(val)
+			grid = val
+		end,
+	},
 }
 
 function updateMenu()
@@ -667,6 +683,11 @@ function drawMenu()
 	)
 	gfx.popContext()
 end
+
+function drawPlayfieldBorder()
+  gfx.drawRect( (blockSize * offsetX)-3, (blockSize * offsetY) -3,
+	              (blockSize * gridXCount)+5, (blockSize * gridYCount)+5)
+	end
 
 -- Playdate stuff
 
