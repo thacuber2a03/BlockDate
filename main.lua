@@ -647,16 +647,19 @@ function drawMenu()
 
 	local bheight = bold:getHeight()
 	for i, v in ipairs(menu) do
-		gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
 		if v.type == "crossmark" then
+			gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2 + 20, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
 			-- _ is a throwaway variable. Just using it to get cheight.
 			local _, cheight = crossmarkFieldImage:getSize()
 			local pos = geom.point.new(
-				dwidth/2-menuWidth/2+bold:getTextWidth(v.name)+12.5,
+				(dwidth/2-menuWidth/2) + 8,
 				menuYTimer.value-menuHeight/2+((i-1)*bheight)+cheight/2
 			)
 			crossmarkFieldImage:drawCentered(pos:unpack())
 			if v.state then crossmarkImage:drawCentered(pos:unpack()) end
+		else
+			gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
+
 		end
 	end
 
