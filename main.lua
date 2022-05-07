@@ -43,7 +43,9 @@ local btn  <const> = playdate.buttonIsPressed
 local btnp <const> = playdate.buttonJustPressed
 local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
--- Save data
+---------------
+-- Save data --
+---------------
 
 -- If there's no game data available make some
 savedData = data.read("gamedata") or {}
@@ -61,7 +63,44 @@ local function commitSaveData()
 	data.write(savedData, "gamedata", true)
 end
 
--- Utils
+----------------------
+-- Global variables --
+----------------------
+
+gridXCount, gridYCount = 10, 18
+
+pieceXCount, pieceYCount = 4, 4
+
+-- grid offset
+offsetX, offsetY = 13, 2
+
+blockSize = 11
+
+-- this looks so weird
+	shake, sash, ghost,
+	grid, darkMode,
+	inverseRotation,
+	music, sounds
+=
+	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
+	loadData("grid") or false, loadData("darkMode") or false,
+	loadData("inverseRotation") or false,
+	loadData("music") or 1, loadData("sounds") or 1
+
+------------------------
+-- "Global" variables --
+------------------------
+
+local introRectT = time.new(100, 400, 0, easings.outCubic)
+
+local highscore = loadData("highscore") or 0
+
+-- t spin detection coming soon probably
+local lastAction = ""
+
+-----------
+-- Utils --
+-----------
 
 local function random(min, max, float)
 	math.randomseed(playdate.getSecondsSinceEpoch())
@@ -80,8 +119,9 @@ end
 
 -- not yet used but will use...
 -- at some point
+MUSICDIR = "assets/music/"
 local function loadMusic(name)
-	return assert(snd.fileplayer.new(SOUNDSDIR..name))
+	return assert(snd.fileplayer.new(MUSICDIR..name))
 end
 
 IMAGESDIR = "assets/images/"
@@ -93,7 +133,68 @@ local function loadImagetable(name)
 	return assert(gfx.imagetable.new(IMAGESDIR..name))
 end
 
--- Game related functions
+------------
+-- Sounds --
+------------
+
+local comboSounds = {}
+for i=1, 4 do table.insert(comboSounds, loadSound("combo"..i)) end
+local function stopAllComboSounds()
+	for i=1, 4 do
+		if comboSounds[i]:isPlaying() then comboSounds[i]:stop() end
+	end
+end
+
+local dropSound = loadSound("drop")
+local tetrisSound = loadSound("tetris")
+local holdSound = loadSound("hold")
+
+local menuScrollSound = loadSound("menu-scroll")
+local menuClickSound = loadSound("menu-click")
+
+-- holy shit it finally was added
+local bgmIntro = loadMusic("bgmintro")
+local bgmLoop = loadMusic("bgmloop")
+
+------------
+-- images --
+------------
+
+local nextFrameImage = loadImage("next-frame")
+local holdFrameImage = loadImage("hold-frame")
+
+local crossmarkFieldImage = loadImage("crossmark-field")
+local crossmarkImage = loadImage("crossmark")
+
+local ghostBlockImagetable = loadImagetable("ghost-block/ghost-block")
+
+------------------------------------------
+-- Game related functions and variables --
+------------------------------------------
+
+local displayYPos = 0
+
+local completedLines = 0
+local combo, level = 0, 0
+local levelIncreased = false
+
+local lostY = 1
+local lost = false
+
+local clearLines, lines, sashes = {}, {}, {}
+
+local holdDir = 0
+local heldPiece
+
+local pieceHasChanged = false
+
+local UITimer
+local inert = {}
+
+local timer = 0
+local timerLimit = 30
+local score = 0
+local scoreGoal = score
 
 local function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
@@ -103,7 +204,7 @@ local function canPieceMove(testX, testY, testRotation)
 			if not inert[testY+1] then return false end
 			if pieceStructures[piece.type][testRotation+1][y][x] ~= ' ' and (
 				testBlockX < 1 or testBlockX > gridXCount
-				or testBlockY > gridYCount
+				or testBlockY < 1 or testBlockY > gridYCount
 				or inert[testBlockY][testBlockX] ~= " "
 			) then
 				return false
@@ -135,46 +236,19 @@ local function newPiece(type)
 	if #sequence == 0 then newSequence() end
 end
 
-local function drawBlock(block, x, y)
-	local rect = geom.rect.new(
-		(x-1)*blockSize, (y-1)*blockSize,
-		blockSize-1, blockSize-1
-	)
-	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
-	elseif block ~= " " then gfx.fillRect(rect) end
-end
-
-local function drawTexturedBlock(image, x, y)
-	image:draw((x-1)*blockSize, (y-1)*blockSize)
-end
-
-local function loopThroughBlocks(func)
-	for y=1, pieceYCount do
-		for x=1, pieceXCount do
-			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
-		end
-	end
-end
-
-local function addPieceToInertGrid()
-	loopThroughBlocks(function(block, x, y)
-		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
-	end)
-end
-
 local function rotate(rotation)
 	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
 	testRotation %= #pieceStructures[piece.type]
 
 	-- Implementing this took too much brain energy from me :(
-	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][testRotation + 1][(rotation==1 and 1 or 2)]
+	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][piece.rotation+1][(rotation==1 and "cw" or "ccw")]
 	for i=1, #chosenWallKickTests do
-		local testX = piece.x+chosenWallKickTests[i][1]
-		local testY = piece.y+chosenWallKickTests[i][2]
-		if canPieceMove(piece.x+chosenWallKickTests[i][1], piece.y+chosenWallKickTests[i][2], testRotation) then
-			piece.x = testX
-			piece.y = testY
+		local tx = piece.x+chosenWallKickTests[i][1]
+		local ty = piece.y+chosenWallKickTests[i][2]
+		if canPieceMove(tx, ty, testRotation) then
+			piece.x = tx
+			piece.y = ty
 			piece.rotation = testRotation
 			break
 		end
@@ -198,54 +272,10 @@ local function move(direction)
 	end
 end
 
--- Init
-
-introRectT = time.new(100, 400, 0, easings.outCubic)
-
-gridXCount, gridYCount = 10, 18
-
-pieceXCount, pieceYCount = 4, 4
-
--- grid offset
-offsetX, offsetY = 13, 2
-
-blockSize = 11
-
-highscore = loadData("highscore") or 0
-
-shake, sash, ghost, grid, darkMode =
-loadData("shake") or true,
-loadData("sash")  or true,
-loadData("ghost") or true,
-loadData("grid")  or false,
-loadData("darkMode") or false
-
--- sounds
-
-comboSounds = {}
-for i=1, 4 do table.insert(comboSounds, loadSound("combo"..i)) end
-local function stopAllComboSounds()
-	for i=1, 4 do
-		if comboSounds[i]:isPlaying() then comboSounds[i]:stop() end
-	end
+local function holdDirection(dir)
+	if holdDir == 0 or holdDir > 5 then move(dir) end
+	holdDir += 1
 end
-
-dropSound = loadSound("drop")
-tetrisSound = loadSound("tetris")
-holdSound = loadSound("hold")
-
-menuScrollSound = loadSound("menu-scroll")
-menuClickSound = loadSound("menu-click")
-
--- images
-
-nextFrameImage = loadImage("next-frame")
-holdFrameImage = loadImage("hold-frame")
-
-crossmarkFieldImage = loadImage("crossmark-field")
-crossmarkImage = loadImage("crossmark")
-
-ghostBlockImagetable = loadImagetable("ghost-block/ghost-block")
 
 local inputHandlers	= {
 	upButtonDown = function()
@@ -262,10 +292,10 @@ local inputHandlers	= {
 	end,
 	-- Skip the O piece when rotating.
 	AButtonDown = function()
-		if not lost then if piece.type ~= 2 then rotate(1) end end
+		if not lost then if piece.type ~= 2 then rotate(inverseRotation and -1 or 1) end end
 	end,
 	BButtonDown = function()
-		if not lost then if piece.type ~= 2 then rotate(-1) end end
+		if not lost then if piece.type ~= 2 then rotate(inverseRotation and 1 or -1) end end
 	end
 }
 
@@ -290,7 +320,6 @@ local function reset()
 			inert[y][x] = ' '
 		end
 	end
-	assert(inert)
 
 	playdate.inputHandlers.push(inputHandlers)
 
@@ -302,9 +331,34 @@ local function reset()
 	scoreGoal = score
 end
 
-local function holdDirection(dir)
-	if holdDir == 0 or holdDir > 5 then move(dir) end
-	holdDir += 1
+local function drawBlock(block, x, y)
+	local rect = geom.rect.new(
+		(x-1)*blockSize,
+		(y-1)*blockSize,
+		blockSize-1,
+		blockSize-1
+	)
+	
+	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+	elseif block ~= " " then gfx.fillRect(rect) end
+end
+
+local function drawTexturedBlock(image, x, y)
+	image:draw((x-1)*blockSize, (y-1)*blockSize)
+end
+
+local function loopThroughBlocks(func)
+	for y=1, pieceYCount do
+		for x=1, pieceXCount do
+			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
+		end
+	end
+end
+
+local function addPieceToInertGrid()
+	loopThroughBlocks(function(block, x, y)
+		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
+	end)
 end
 
 reset()
@@ -467,13 +521,19 @@ end
 
 local function drawGame()
 	gfx.pushContext()
-	gfx.clear((darkMode and gfx.kColorBlack or gfx.kColorWhite))
-	playdate.drawFPS()
-	if darkMode then gfx.setColor(gfx.kColorWhite) end
+
+	if darkMode then
+		gfx.setColor(gfx.kColorWhite)
+		gfx.setImageDrawMode("fillWhite")
+	else
+		gfx.setColor(gfx.kColorBlack)
+		gfx.setImageDrawMode("copy")
+	end
+
+	gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
 
 	if displayYPos ~= 0 then
 		displayYPos+=((0-displayYPos)*0.25)
-		gfx.setBackgroundColor(gfx.kColorBlack)
 		gfx.setDrawOffset(0,displayYPos)
 	end
 
@@ -488,7 +548,12 @@ local function drawGame()
 
 	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
-	if not grid then gfx.drawRect(offsetX*blockSize, offsetY*blockSize, gridXCount*blockSize, gridYCount*blockSize) end
+	if not grid then
+		gfx.drawRect(
+			offsetX*blockSize,    offsetY*blockSize,
+			gridXCount*blockSize, gridYCount*blockSize
+		)
+	end
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
@@ -518,20 +583,21 @@ local function drawGame()
 
 	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
 	loopThroughBlocks(function(_, x, y)
-		local block = pieceStructures[sequence[#sequence]][1][y][x]
+		local nextPiece = sequence[#sequence]
+		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
-			local acp = sequence[#sequence] ~= 1 and sequence[#sequence] ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+(acp and 1.5 or 2)), y+(acp and 4 or 3))
+			local acp = nextPiece ~= 1 and nextPiece ~= 2
+			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+(acp and 1.5 or 2)), y+(acp and 4 or (nextPiece == 2 and 3 or 3.5)))
 		end
 	end)
 
-	holdFrameImage:drawCentered((UITimer.value)*blockSize, 5*blockSize-1)
+	holdFrameImage:drawCentered(UITimer.value*blockSize-1, 5*blockSize-1)
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
-				local acp = heldPiece ~= 1 and held ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 1.5 or 2)), y+(acp and 4 or 3))
+				local acp = heldPiece ~= 1 and heldPiece ~= 2
+				drawBlock('*', x+(UITimer.value-(acp and 1.5 or 2)), y+(acp and 4 or (heldPiece == 2 and 3 or 3.5)))
 			end
 		end)
 	end
@@ -567,14 +633,23 @@ local patterns = {
 	{0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 170, 85, 170, 85, 170, 85, 170, 85}, -- gray
 }
 
+local menuOpen = false
+local bold = gfx.getSystemFont("bold")
+local menuYTimer, menuWidth
+
+local function closeMenu()
+	-- Sorry, I love back easing XD
+	menuYTimer = time.new(250, dheight/2, dheight, easings.inBack)
+	patternTimer = time.new(250, #patterns, 1,easings.inBack)
+end
+
 local menu = {
 	{
 		name = "Continue",
 		type = "button",
 		onpress = function()
-			-- Sorry, I love back easing XD
-			menuYTimer = time.new(250, dheight/2, dheight, easings.inBack)
-			patternTimer = time.new(250, #patterns, 1,easings.inBack)
+			closeMenu()
+			menuOpen = false
 		end,
 	},
 	{
@@ -621,8 +696,41 @@ local menu = {
 			darkMode = val
 			saveData("darkMode", darkMode)
 		end,
+	},
+	{
+		name = "Invert Rotation",
+		type = "crossmark",
+		state = inverseRotation,
+		ontoggle = function(val)
+			inverseRotation = val
+			saveData("inverseRotation", inverseRotation)
+		end
+	},
+	{
+		name = "Music",
+		type = "slider",
+		min = 0,
+		max = 1,
+		value = music,
+		onchange = function(val)
+			music = val
+			saveData("music", music)
+		end,
+	},
+	{
+		name = "Sound",
+		type = "slider",
+		min = 0,
+		max = 1,
+		value = sounds,
+		onchange = function(val)
+			sounds = val
+			saveData("sounds", sounds)
+		end,
 	}
 }
+
+local menuHeight = #menu*bold:getHeight()
 
 function updateMenu()
 	if menuYTimer.value == dheight/2 then
@@ -635,20 +743,34 @@ function updateMenu()
 		end
 		menuCursor %= #menu
 		
+		local menuItem = menu[menuCursor+1]
 		if btnp("a") then
-			local menuItem = menu[menuCursor+1]
 			if menuItem.type == "button" then
 				menuItem.onpress()
+				menuClickSound:play()
 			elseif menuItem.type == "crossmark" then
 				menuItem.state = not menuItem.state
 				menuItem.ontoggle(menuItem.state)
+				menuClickSound:play()
 			end
-			menuClickSound:play()
+			
 			commitSaveData()
+		end
+
+		if menuItem.type == "slider" then
+			if btn("right") then
+				menuItem.value = math.max(menuItem.min, math.min(menuItem.value + menuItem.max / 50, menuItem.max))
+				menuItem.onchange(menuItem.value)
+				commitSaveData()
+			elseif btn("left") then
+				menuItem.value = math.max(menuItem.min, math.min(menuItem.value - menuItem.max / 50, menuItem.max))
+				menuItem.onchange(menuItem.value)
+				commitSaveData()
+			end
 		end
 	end
 
-	if menuYTimer.value == dheight then
+	if math.abs(dheight-menuYTimer.value) < 0.5 then
 		playdate.inputHandlers.push(inputHandlers)
 		_update = updateGame
 		_draw = drawGame
@@ -676,58 +798,94 @@ function drawMenu()
 
 	local bheight = bold:getHeight()
 	for i, v in ipairs(menu) do
-		gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
 		if v.type == "crossmark" then
+			gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2 + 20, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
 			-- _ is a throwaway variable. Just using it to get cheight.
 			local _, cheight = crossmarkFieldImage:getSize()
 			local pos = geom.point.new(
-				dwidth/2-menuWidth/2+bold:getTextWidth(v.name)+12.5,
+				(dwidth/2-menuWidth/2)+8,--bold:getTextWidth(v.name)/2+5,
 				menuYTimer.value-menuHeight/2+((i-1)*bheight)+cheight/2
 			)
 			crossmarkFieldImage:drawCentered(pos:unpack())
 			if v.state then crossmarkImage:drawCentered(pos:unpack()) end
+		elseif v.type == "slider" then
+			gfx.drawText("*"..v.name.."*", dwidth/2-bold:getTextWidth(v.name)/2, menuYTimer.value-menuHeight/2+((i-1)*bheight))
+			gfx.setColor(gfx.kColorXOR)
+			gfx.fillRect(
+				dwidth/2-menuWidth/2,
+				menuYTimer.value-menuHeight/2+((i-1)*bheight)-1,
+				v.value*menuWidth,
+				bold:getHeight()
+			)
+			gfx.setColor(gfx.kColorBlack)
+		else
+			gfx.drawText("*"..v.name.."*", dwidth/2-menuWidth/2, menuYTimer.value-menuHeight/2+((i-1)*bheight)+1)
 		end
 	end
 
+	local menuItem = menu[menuCursor+1]
+	local x = dwidth/2-menuWidth/2
+	local w = bold:getTextWidth(menu[menuCursor+1].name)
+	if menuItem.type == "crossmark" then
+		x = dwidth/2-menuWidth/2 + 20
+	elseif menuItem.type == "slider" then
+		w = menuWidth
+	end
 	gfx.drawRect(
-		dwidth/2-(menuWidth/2+5),
-		((menuYTimer.value-menuHeight/2)+menuCursor*bheight)-2.5,
-  	menuWidth+10, bheight, 2
+		x, ((menuYTimer.value-menuHeight/2)+menuCursor*bheight)-2.5, w, bheight, 2
 	)
 	gfx.popContext()
 end
 
--- Playdate stuff
+----------------------------
+-- Playdate-related stuff --
+----------------------------
 
 playdate.getSystemMenu():addMenuItem("options", function()
-	bold = gfx.getSystemFont("bold")
-	menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
-	menuHeight = #menu*bold:getHeight()
-	longestString = ""
-	for k, v in pairs(menu) do
-		if #v.name > #longestString then
-			longestString = v.name
+	menuOpen = not menuOpen
+	if not menuOpen then closeMenu()
+	else
+		bold = gfx.getSystemFont("bold")
+		menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
+		menuHeight = #menu*bold:getHeight()
+		local longestString = ""
+		for k, v in pairs(menu) do
+			if #v.name > #longestString then
+				longestString = v.name
+			end
 		end
+
+		-- playdate.graphics.image:getSize() returns two values. By using it like this,
+		-- I am taking the first value and discarding the rest,
+		-- the first value being the width, which is what i need.
+		menuWidth = bold:getTextWidth(longestString) + crossmarkFieldImage:getSize()
+		menuCursor = 1
+
+		backgroundImage = gfx.image.new(dwidth, dheight)
+		gfx.pushContext(backgroundImage)
+		drawGame()
+		gfx.popContext()
+
+		playdate.inputHandlers.pop()
+		patternTimer = time.new(250, 1, #patterns, easings.outBack)
 	end
-
-	-- playdate.graphics.image:getSize() returns two values. By using it like this,
-	-- I am taking the first value and discarding the rest,
-	-- the first value being the width, which is what i need.
-	menuWidth = bold:getTextWidth(longestString) + crossmarkFieldImage:getSize()
-	menuCursor = 1
-
-	backgroundImage = gfx.image.new(dwidth, dheight)
-	gfx.pushContext(backgroundImage)
-	drawGame()
-	gfx.popContext()
-
-	playdate.inputHandlers.pop()
-	patternTimer = time.new(250, 1, #patterns, easings.outBack)
 	_update = updateMenu
 	_draw = drawMenu
 end)
 
+bgmIntro:play()
+
 function playdate.update()
+	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
+		bgmLoop:play(0)
+	end
+	bgmIntro:setVolume(music-(menuOpen and 0.5 or 0))
+	bgmLoop:setVolume(music-(menuOpen and 0.5 or 0))
+	for i,v in ipairs(snd.playingSources()) do
+		if tostring(v):find("sampleplayer") then
+			v:setVolume(sounds)
+		end
+	end
 	_update()
 	_draw()
 end
@@ -736,7 +894,10 @@ function playdate.gameWillTerminate() commitSaveData() end
 
 function playdate.deviceWillSleep() commitSaveData() end
 
--- Debug
+-----------
+-- Debug --
+-----------
+
 function playdate.keyPressed(key)
 	if key == "L" then
 		for i=1, 4 do table.remove(inert) end
@@ -753,10 +914,10 @@ function playdate.keyPressed(key)
 	elseif key == "T" then
 		-- Generate a TSpin scenario
 		for i=1, 5 do table.remove(inert) end
-		table.insert(inert, {"*", "*", "*", "*", "*", " ", " ", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", " ", " ", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", " ", " ", " ", " ", "*", "*", "*"})
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
 	end
 end

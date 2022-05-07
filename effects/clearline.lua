@@ -15,7 +15,7 @@ end
 
 function ClearLine:init(y)
 	self.pos = geom.point.new(offsetX*blockSize,y*blockSize)
-	self.widthTimer = playdate.timer.new(250, gridXCount*blockSize, 0, playdate.easingFunctions.inCubic)
+	self.widthTimer = playdate.timer.new(250, gridXCount*blockSize, 0, playdate.easingFunctions.inOutCubic)
 	self.particle = nil
 	--self.widthTimer.reverseEasingFunction = playdate.easingFunctions.outInCubic
 	--self.widthTimer.reverses = true
@@ -48,13 +48,11 @@ function ClearLine:update()
 end
 
 function ClearLine:draw()
-	--gfx.setPattern({0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA})
+	gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
 	gfx.fillRect(self.pos.x, self.pos.y, self.widthTimer.value, blockSize)
-	--gfx.setPattern({0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0})
 	if self.particle then
 		self.particle:draw()
 		self.particle:update()
 		if self.particle.dead then self.dead = true end
 	end
-	--assert(not (self.particle and self.particle.dead == true))
 end
