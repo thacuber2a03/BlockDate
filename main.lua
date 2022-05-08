@@ -552,7 +552,7 @@ end
 
 
 local function drawNextPiece() -- draw next piece
-	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value-1)*blockSize)+2, 5*blockSize-1)
+	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*blockSize, 5*blockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
