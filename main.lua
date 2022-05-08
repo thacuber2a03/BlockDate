@@ -307,7 +307,7 @@ end
 
 local inputHandlers	= {
 	upButtonDown = function()
-		if not lost then
+		if not lost and not menuOpen then
 			local dist = 0
 			while canPieceMove(piece.x, piece.y + 1, piece.rotation) do
 				piece.y += 1
@@ -367,7 +367,11 @@ local function drawBlock(block, x, y, size)
 		size-1
 	)
 	
-	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
+	if grid then
+		gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+		gfx.fillRect(rect)
+		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+		gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
 	elseif block ~= " " then gfx.fillRect(rect) end
 end
 
@@ -390,6 +394,13 @@ local function addPieceToInertGrid()
 end
 
 reset()
+
+local function lose()
+	timer = 0
+	lost = true
+	UITimer = time.new(500, 8, -4, easings.outCubic)
+	playdate.inputHandlers.pop()
+end
 
 local function updateGame()
 	if not lost then
@@ -522,12 +533,7 @@ local function updateGame()
 				newPiece(table.remove(sequence))
 				hasHeldPiece = false
 
-				if not canPieceMove(piece.x, piece.y, piece.rotation) then
-					timer = 0
-					lost = true
-					UITimer = time.new(500, 8, -4, easings.outCubic)
-					playdate.inputHandlers.pop()
-				end -- check if lost
+				if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
 			end -- complete a row
 		end -- timer is over timerLimit
 	else
@@ -547,7 +553,6 @@ local function updateGame()
 		end
 	end -- state machine
 end
-
 
 local function drawScores()
 	local bold = gfx.getSystemFont("bold")
@@ -618,14 +623,27 @@ local function drawGame()
 		end
 	end
 
+	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
+
+	if not grid then
+		gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+		gfx.fillRect(
+			offsetX*blockSize,    offsetY*blockSize,
+			gridXCount*blockSize, gridYCount*blockSize
+		)
+	end
+
 	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
 	if not grid then
+		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
 		gfx.drawRect(
 			offsetX*blockSize,    offsetY*blockSize,
 			gridXCount*blockSize, gridYCount*blockSize
 		)
 	end
+
+	for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
@@ -651,16 +669,12 @@ local function drawGame()
 		end
 	end)
 
-	for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
-
 	gfx.setDrawOffset(0,0)
 
 	drawHeldPiece()
 	drawNextPiece()
 	drawScores()
 	drawLevelInfo()
-
-	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
 	gfx.fillRect(0, 0, 400, introRectT.value)
 
@@ -803,8 +817,8 @@ function updateMenu()
 			menuScrollSound:play()
 			menuCursor += 1
 		elseif btnp("up") then
-			menuCursor -= 1
 			menuScrollSound:play()
+			menuCursor -= 1
 		end
 		menuCursor %= #menu
 		
@@ -903,36 +917,47 @@ end
 -- Playdate-related stuff --
 ----------------------------
 
-playdate.getSystemMenu():addMenuItem("options", function()
-	menuOpen = not menuOpen
-	if not menuOpen then closeMenu()
-	else
-		bold = gfx.getSystemFont("bold")
-		menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
-		menuHeight = #menu*bold:getHeight()
-		local longestString = ""
-		for k, v in pairs(menu) do
-			if #v.name > #longestString then
-				longestString = v.name
+local sysmenu = playdate.getSystemMenu()
+sysmenu:addMenuItem("options", function()
+	if not lost then
+		menuOpen = not menuOpen
+		if not menuOpen then closeMenu()
+		else
+			bold = gfx.getSystemFont("bold")
+			menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
+			menuHeight = #menu*bold:getHeight()
+			local longestString = ""
+			for k, v in pairs(menu) do
+				if #v.name > #longestString then
+					longestString = v.name
+				end
 			end
+
+			-- playdate.graphics.image:getSize() returns two values. By using it like this,
+			-- I am taking the first value and discarding the rest,
+			-- the first value being the width, which is what i need.
+			menuWidth = bold:getTextWidth(longestString) + crossmarkFieldImage:getSize()
+			menuCursor = 1
+
+			backgroundImage = gfx.image.new(dwidth, dheight)
+			gfx.pushContext(backgroundImage)
+			drawGame()
+			gfx.popContext()
+
+			playdate.inputHandlers.pop()
+			patternTimer = time.new(250, 1, #patterns, easings.outBack)
 		end
-
-		-- playdate.graphics.image:getSize() returns two values. By using it like this,
-		-- I am taking the first value and discarding the rest,
-		-- the first value being the width, which is what i need.
-		menuWidth = bold:getTextWidth(longestString) + crossmarkFieldImage:getSize()
-		menuCursor = 1
-
-		backgroundImage = gfx.image.new(dwidth, dheight)
-		gfx.pushContext(backgroundImage)
-		drawGame()
-		gfx.popContext()
-
-		playdate.inputHandlers.pop()
-		patternTimer = time.new(250, 1, #patterns, easings.outBack)
+		_update = updateMenu
+		_draw = drawMenu
 	end
-	_update = updateMenu
-	_draw = drawMenu
+end)
+
+sysmenu:addMenuItem("restart", function()
+	if not lost and UITimer.timeLeft == 0 then
+		addPieceToInertGrid()
+		lose()
+		commitSaveData()
+	end
 end)
 
 bgmIntro:play()
