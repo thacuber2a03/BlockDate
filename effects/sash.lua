@@ -50,7 +50,7 @@ function Sash:draw()
 		gfx.fillRect(0, 0, dwidth, self.heightTimer.value)
 	end
 	if self.textPosTimer then
-		gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
+		gfx.setImageDrawMode(darkMode and "fillBlack" or "fillWhite")
 		gfx.drawText("*"..self.text.."*", self.textPosTimer.value, gfx.getSystemFont("bold"):getHeight()/2)
 	end
 	gfx.popContext()

@@ -30,7 +30,6 @@ function EndLine:draw()
 	--gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
 	local nextPattern = math.max(math.floor((self.life/self.max_life)*#self.patterns)+1, 1)
 	if darkMode then nextPattern = #self.patterns-nextPattern+1 end
-	print(nextPattern)
 	gfx.setPattern(self.patterns[nextPattern])
 	gfx.fillRect(self.pos.x,self.pos.y,gridXCount*blockSize,blockSize)
 	gfx.popContext()

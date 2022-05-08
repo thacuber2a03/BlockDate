@@ -90,9 +90,7 @@ uiBlockSize = 11
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
 	loadData("music") or 1, loadData("sounds") or 1,
-        loadData("bigBlocks") or false
-
-
+	loadData("bigBlocks") or false
 
 if bigBlocks then
 	blockSize = 13
@@ -101,7 +99,6 @@ else
 end
 
 computeGridOffset()
-
 
 ------------------------
 -- "Global" variables --
@@ -182,7 +179,8 @@ local holdFrameImage = loadImage("hold-frame")
 local crossmarkFieldImage = loadImage("crossmark-field")
 local crossmarkImage = loadImage("crossmark")
 
-local ghostBlockImagetable = loadImagetable("ghost-block/ghost-block")
+local ghostBlockImagetable = loadImagetable("ghost-block/normal/ghost-block")
+local ghostBlockImagetableBig = loadImagetable("ghost-block/big/ghost-block")
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -259,7 +257,7 @@ local function rotate(rotation)
 	testRotation %= #pieceStructures[piece.type]
 
 	-- Implementing this took too much brain energy from me :(
-	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][piece.rotation+1][(rotation==1 and "cw" or "ccw")]
+	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][testRotation+1][(rotation==1 and "cw" or "ccw")]
 	for i=1, #chosenWallKickTests do
 		local tx = piece.x+chosenWallKickTests[i][1]
 		local ty = piece.y+chosenWallKickTests[i][2]
@@ -455,7 +453,7 @@ local function updateGame()
 							level += 1
 						elseif completedLines%10 ~= 0 then levelIncreased = false end
 
-						table.insert(clearLines, ClearLine(y+1))
+						table.insert(clearLines, ClearLine(y-1))
 						for removeY = y, 2, -1 do
 							for removeX = 1, gridXCount do
 								inert[removeY][removeX] =
@@ -492,10 +490,11 @@ local function updateGame()
 				end
 
 
-				if clearedLines >= 4 then -- unlikely to be bigger than 4 but idc
+				if clearedLines >= 4 then
 					stopAllComboSounds()
 					tetrisSound:play()
-					if sash then table.insert(sashes, Sash("4-line Clear!")) end
+					if sash then table.insert(sashes, Sash("Playtris!")) end
+					scoreGoal += 15 * combo
 				end
 
 				if allclear and sash then
@@ -562,12 +561,11 @@ local function drawHeldPiece() -- draw held piece
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
 				local acp = heldPiece ~= 1 and heldPiece ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 3.25 or 3.75 )), y+(acp and 4 or 3),uiBlockSize)
+				drawBlock('*', x+(UITimer.value-(acp and 3.5 or 3.9)), y+(acp and 4 or (heldPiece == 1 and 3.5 or 3)), uiBlockSize)
 			end
 		end)
 	end
 end
-
 
 local function drawNextPiece() -- draw next piece
 	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
@@ -576,13 +574,10 @@ local function drawNextPiece() -- draw next piece
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3),uiBlockSize)
+			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
 		end
 	end)
 end
-
-
-
 
 local function drawGame()
 	gfx.pushContext()
@@ -633,8 +628,9 @@ local function drawGame()
 				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 				if ghost then
 					local _, millis = playdate.getSecondsSinceEpoch()
+					local selectedImagetable = (bigBlocks and ghostBlockImagetableBig or ghostBlockImagetable)
 					drawTexturedBlock(
-						ghostBlockImagetable:getImage(1+math.floor(millis/100%#ghostBlockImagetable)),
+						selectedImagetable:getImage(1+math.floor(millis/100%#selectedImagetable)),
 						x + piece.x + offsetX, y + ghostPieceY + offsetY,
 						blockSize
 					)
@@ -938,10 +934,8 @@ function playdate.update()
 	end
 	bgmIntro:setVolume(music-(menuOpen and 0.5 or 0))
 	bgmLoop:setVolume(music-(menuOpen and 0.5 or 0))
-	for i,v in ipairs(snd.playingSources()) do
-		if tostring(v):find("sampleplayer") then
-			v:setVolume(sounds)
-		end
+	for k,v in pairs(snd.playingSources()) do
+		if tostring(v):find("sampleplayer") then v:setVolume(sounds) end
 	end
 	_update()
 	_draw()
