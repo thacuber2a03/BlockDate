@@ -75,6 +75,7 @@ pieceXCount, pieceYCount = 4, 4
 offsetX, offsetY = 13, 2
 
 blockSize = 11
+uiBlockSize = 11
 
 -- this looks so weird
 	shake, sash, ghost,
@@ -236,6 +237,7 @@ local function newPiece(type)
 	if #sequence == 0 then newSequence() end
 end
 
+
 local function rotate(rotation)
 	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
@@ -331,20 +333,20 @@ local function reset()
 	scoreGoal = score
 end
 
-local function drawBlock(block, x, y)
+local function drawBlock(block, x, y, size)
 	local rect = geom.rect.new(
-		(x-1)*blockSize,
-		(y-1)*blockSize,
-		blockSize-1,
-		blockSize-1
+		(x-1)*size,
+		(y-1)*size,
+		size-1,
+		size-1
 	)
 	
 	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
 	elseif block ~= " " then gfx.fillRect(rect) end
 end
 
-local function drawTexturedBlock(image, x, y)
-	image:draw((x-1)*blockSize, (y-1)*blockSize)
+local function drawTexturedBlock(image, x, y, size)
+	image:draw((x-1)*size, (y-1)*size)
 end
 
 local function loopThroughBlocks(func)
@@ -544,7 +546,7 @@ local function drawHeldPiece() -- draw held piece
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
 				local acp = heldPiece ~= 1 and heldPiece ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 3.25 or 3.75 )), y+(acp and 4 or 3))
+				drawBlock('*', x+(UITimer.value-(acp and 3.25 or 3.75 )), y+(acp and 4 or 3),uiBlockSize)
 			end
 		end)
 	end
@@ -558,7 +560,7 @@ local function drawNextPiece() -- draw next piece
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3))
+			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3),uiBlockSize)
 		end
 	end)
 end
@@ -604,7 +606,7 @@ local function drawGame()
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
-			drawBlock(inert[y][x], x + offsetX, y + offsetY)
+			drawBlock(inert[y][x], x + offsetX, y + offsetY, blockSize)
 		end
 	end
 
@@ -612,12 +614,13 @@ local function drawGame()
 		if not lost then
 			local block = pieceStructures[piece.type][piece.rotation+1][y][x]
 			if block ~= ' ' then
-				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY)
+				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 				if ghost then
 					local _, millis = playdate.getSecondsSinceEpoch()
 					drawTexturedBlock(
 						ghostBlockImagetable:getImage(1+math.floor(millis/100%#ghostBlockImagetable)),
-						x + piece.x + offsetX, y + ghostPieceY + offsetY
+						x + piece.x + offsetX, y + ghostPieceY + offsetY,
+						uiBlockSize
 					)
 				end
 			end
