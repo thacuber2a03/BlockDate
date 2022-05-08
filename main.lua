@@ -71,11 +71,13 @@ gridXCount, gridYCount = 10, 18
 
 pieceXCount, pieceYCount = 4, 4
 
--- grid offset
-offsetX, offsetY = 13, 2
-
 blockSize = 11
 uiBlockSize = 11
+
+-- grid offset
+offsetY = ((dheight/blockSize)/2) - (gridYCount/2)
+offsetX = ((dwidth / blockSize) / 2) - (gridXCount/2)
+
 
 -- this looks so weird
 	shake, sash, ghost,
