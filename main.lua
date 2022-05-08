@@ -83,7 +83,7 @@ uiBlockSize = 11
 	shake, sash, ghost,
 	grid, darkMode,
 	inverseRotation,
-	music, sounds,
+	musicVolume, soundsVolume,
 	bigBlocks
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
@@ -165,9 +165,21 @@ local holdSound = loadSound("hold")
 local menuScrollSound = loadSound("menu-scroll")
 local menuClickSound = loadSound("menu-click")
 
+local sfx = {
+	dropSound,
+	tetrisSound,
+	holdSound,
+	menuScrollSound,
+	menuClickSound
+}
+
 -- holy shit it finally was added
 local bgmIntro = loadMusic("bgmintro")
 local bgmLoop = loadMusic("bgmloop")
+
+local songs = {
+	bgmIntro, bgmLoop
+}
 
 ------------
 -- images --
@@ -764,10 +776,10 @@ local menu = {
 		type = "slider",
 		min = 0,
 		max = 1,
-		value = music,
+		value = musicVolume,
 		onchange = function(val)
-			music = val
-			saveData("music", music)
+			musicVolume = val
+			saveData("music", musicVolume)
 		end,
 	},
 	{
@@ -775,10 +787,10 @@ local menu = {
 		type = "slider",
 		min = 0,
 		max = 1,
-		value = sounds,
+		value = soundsVolume,
 		onchange = function(val)
-			sounds = val
-			saveData("sounds", sounds)
+			soundsVolume = val
+			saveData("sounds", soundsVolume)
 		end,
 	},
 }
@@ -879,11 +891,8 @@ function drawMenu()
 	local menuItem = menu[menuCursor+1]
 	local x = dwidth/2-menuWidth/2
 	local w = bold:getTextWidth(menu[menuCursor+1].name)
-	if menuItem.type == "crossmark" then
-		x = dwidth/2-menuWidth/2 + 20
-	elseif menuItem.type == "slider" then
-		w = menuWidth
-	end
+	if menuItem.type == "crossmark" then x += 20
+	elseif menuItem.type == "slider" then w = menuWidth end
 	gfx.drawRect(
 		x, ((menuYTimer.value-menuHeight/2)+menuCursor*bheight)-2.5, w, bheight, 2
 	)
@@ -932,10 +941,15 @@ function playdate.update()
 	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
 		bgmLoop:play(0)
 	end
-	bgmIntro:setVolume(music-(menuOpen and 0.5 or 0))
-	bgmLoop:setVolume(music-(menuOpen and 0.5 or 0))
-	for k,v in pairs(snd.playingSources()) do
-		if tostring(v):find("sampleplayer") then v:setVolume(sounds) end
+	for i,v in ipairs(songs) do
+		if v:getVolume() ~= musicVolume then
+			v:setVolume(musicVolume)
+		end
+	end
+	for i,v in ipairs(sfx) do
+		if v:getVolume() ~= soundsVolume then
+			v:setVolume(soundsVolume)
+		end
 	end
 	_update()
 	_draw()
