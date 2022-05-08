@@ -63,6 +63,11 @@ local function commitSaveData()
 	data.write(savedData, "gamedata", true)
 end
 
+local function computeGridOffset()
+  offsetY = ((dheight/blockSize)/2) - (gridYCount/2)
+  offsetX = ((dwidth / blockSize) / 2) - (gridXCount/2)
+end
+
 ----------------------
 -- Global variables --
 ----------------------
@@ -71,24 +76,32 @@ gridXCount, gridYCount = 10, 18
 
 pieceXCount, pieceYCount = 4, 4
 
-blockSize = 11
 uiBlockSize = 11
-
--- grid offset
-offsetY = ((dheight/blockSize)/2) - (gridYCount/2)
-offsetX = ((dwidth / blockSize) / 2) - (gridXCount/2)
 
 
 -- this looks so weird
 	shake, sash, ghost,
 	grid, darkMode,
 	inverseRotation,
-	music, sounds
+	music, sounds,
+	bigBlocks
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
-	loadData("music") or 1, loadData("sounds") or 1
+	loadData("music") or 1, loadData("sounds") or 1,
+        loadData("bigBlocks") or false
+
+
+
+if bigBlocks then
+	blockSize = 13
+else 
+	blockSize = 11
+end
+
+computeGridOffset()
+
 
 ------------------------
 -- "Global" variables --
@@ -279,6 +292,7 @@ end
 local function holdDirection(dir)
 	if holdDir == 0 or holdDir > 5 then move(dir) end
 	holdDir += 1
+
 end
 
 local inputHandlers	= {
@@ -734,6 +748,22 @@ local menu = {
 		end
 	},
 	{
+		name = "Big blocks",
+		type = "crossmark",
+		state = bigBlocks,
+		ontoggle = function(val)
+			bigBlocks = val
+			if bigBlocks then
+				blockSize = 13
+			else 
+				blockSize = 11
+			end
+			computeGridOffset()
+			
+			saveData("bigBlocks", bigBlocks)
+		end,
+	},
+	{
 		name = "Music",
 		type = "slider",
 		min = 0,
@@ -754,7 +784,7 @@ local menu = {
 			sounds = val
 			saveData("sounds", sounds)
 		end,
-	}
+	},
 }
 
 local menuHeight = #menu*bold:getHeight()
