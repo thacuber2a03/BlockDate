@@ -558,7 +558,7 @@ local function drawNextPiece() -- draw next piece
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.5 or 0)), y+(acp and 4 or 3))
+			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3))
 		end
 	end)
 end
