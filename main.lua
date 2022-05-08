@@ -524,23 +524,23 @@ end
 
 local function drawScores()
 	local bold = gfx.getSystemFont("bold")
-	gfx.drawTextAligned("*Score*", (UITimer.value-2)*blockSize, 9*blockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*blockSize, 11*blockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*blockSize, 13*blockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*blockSize, 15*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
 end
 
 local function drawLevelInfo()
 	local bold = gfx.getSystemFont("bold")
 
-	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*blockSize, 9*blockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*blockSize, 11*blockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*blockSize, 13*blockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*blockSize, 15*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
 end
 
 local function drawHeldPiece() -- draw held piece
-	holdFrameImage:drawCentered((UITimer.value-2)*blockSize, 5*blockSize-1)
+	holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
@@ -554,13 +554,13 @@ end
 
 
 local function drawNextPiece() -- draw next piece
-	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*blockSize, 5*blockSize-1)
+	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3),uiBlockSize)
+			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3),uiBlockSize)
 		end
 	end)
 end
@@ -620,7 +620,7 @@ local function drawGame()
 					drawTexturedBlock(
 						ghostBlockImagetable:getImage(1+math.floor(millis/100%#ghostBlockImagetable)),
 						x + piece.x + offsetX, y + ghostPieceY + offsetY,
-						uiBlockSize
+						blockSize
 					)
 				end
 			end
