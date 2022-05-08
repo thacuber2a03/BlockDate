@@ -63,6 +63,11 @@ local function commitSaveData()
 	data.write(savedData, "gamedata", true)
 end
 
+local function computeGridOffset()
+  offsetY = ((dheight/blockSize)/2) - (gridYCount/2)
+  offsetX = ((dwidth / blockSize) / 2) - (gridXCount/2)
+end
+
 ----------------------
 -- Global variables --
 ----------------------
@@ -71,21 +76,32 @@ gridXCount, gridYCount = 10, 18
 
 pieceXCount, pieceYCount = 4, 4
 
--- grid offset
-offsetX, offsetY = 13, 2
+uiBlockSize = 11
 
-blockSize = 11
 
 -- this looks so weird
 	shake, sash, ghost,
 	grid, darkMode,
 	inverseRotation,
-	music, sounds
+	music, sounds,
+	bigBlocks
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
-	loadData("music") or 1, loadData("sounds") or 1
+	loadData("music") or 1, loadData("sounds") or 1,
+        loadData("bigBlocks") or false
+
+
+
+if bigBlocks then
+	blockSize = 13
+else 
+	blockSize = 11
+end
+
+computeGridOffset()
+
 
 ------------------------
 -- "Global" variables --
@@ -236,6 +252,7 @@ local function newPiece(type)
 	if #sequence == 0 then newSequence() end
 end
 
+
 local function rotate(rotation)
 	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
@@ -275,6 +292,7 @@ end
 local function holdDirection(dir)
 	if holdDir == 0 or holdDir > 5 then move(dir) end
 	holdDir += 1
+
 end
 
 local inputHandlers	= {
@@ -331,20 +349,20 @@ local function reset()
 	scoreGoal = score
 end
 
-local function drawBlock(block, x, y)
+local function drawBlock(block, x, y, size)
 	local rect = geom.rect.new(
-		(x-1)*blockSize,
-		(y-1)*blockSize,
-		blockSize-1,
-		blockSize-1
+		(x-1)*size,
+		(y-1)*size,
+		size-1,
+		size-1
 	)
 	
 	if grid then gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
 	elseif block ~= " " then gfx.fillRect(rect) end
 end
 
-local function drawTexturedBlock(image, x, y)
-	image:draw((x-1)*blockSize, (y-1)*blockSize)
+local function drawTexturedBlock(image, x, y, size)
+	image:draw((x-1)*size, (y-1)*size)
 end
 
 local function loopThroughBlocks(func)
@@ -519,6 +537,53 @@ local function updateGame()
 	end -- state machine
 end
 
+
+local function drawScores()
+	local bold = gfx.getSystemFont("bold")
+	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
+end
+
+local function drawLevelInfo()
+	local bold = gfx.getSystemFont("bold")
+
+	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
+end
+
+local function drawHeldPiece() -- draw held piece
+	holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	if heldPiece then
+		loopThroughBlocks(function(_, x, y)
+			local block = pieceStructures[heldPiece][1][y][x]
+			if block ~= ' ' then
+				local acp = heldPiece ~= 1 and heldPiece ~= 2
+				drawBlock('*', x+(UITimer.value-(acp and 3.25 or 3.75 )), y+(acp and 4 or 3),uiBlockSize)
+			end
+		end)
+	end
+end
+
+
+local function drawNextPiece() -- draw next piece
+	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	loopThroughBlocks(function(_, x, y)
+		local nextPiece = sequence[#sequence]
+		local block = pieceStructures[nextPiece][1][y][x]
+		if block ~= ' ' then
+			local acp = nextPiece ~= 1 and nextPiece ~= 2
+			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.375 or 0.125)), y+(acp and 4 or 3),uiBlockSize)
+		end
+	end)
+end
+
+
+
+
 local function drawGame()
 	gfx.pushContext()
 
@@ -557,7 +622,7 @@ local function drawGame()
 
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
-			drawBlock(inert[y][x], x + offsetX, y + offsetY)
+			drawBlock(inert[y][x], x + offsetX, y + offsetY, blockSize)
 		end
 	end
 
@@ -565,12 +630,13 @@ local function drawGame()
 		if not lost then
 			local block = pieceStructures[piece.type][piece.rotation+1][y][x]
 			if block ~= ' ' then
-				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY)
+				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 				if ghost then
 					local _, millis = playdate.getSecondsSinceEpoch()
 					drawTexturedBlock(
 						ghostBlockImagetable:getImage(1+math.floor(millis/100%#ghostBlockImagetable)),
-						x + piece.x + offsetX, y + ghostPieceY + offsetY
+						x + piece.x + offsetX, y + ghostPieceY + offsetY,
+						blockSize
 					)
 				end
 			end
@@ -581,37 +647,10 @@ local function drawGame()
 
 	gfx.setDrawOffset(0,0)
 
-	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
-	loopThroughBlocks(function(_, x, y)
-		local nextPiece = sequence[#sequence]
-		local block = pieceStructures[nextPiece][1][y][x]
-		if block ~= ' ' then
-			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+(acp and 1.5 or 2)), y+(acp and 4 or (nextPiece == 2 and 3 or 3.5)))
-		end
-	end)
-
-	holdFrameImage:drawCentered(UITimer.value*blockSize-1, 5*blockSize-1)
-	if heldPiece then
-		loopThroughBlocks(function(_, x, y)
-			local block = pieceStructures[heldPiece][1][y][x]
-			if block ~= ' ' then
-				local acp = heldPiece ~= 1 and heldPiece ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 1.5 or 2)), y+(acp and 4 or (heldPiece == 2 and 3 or 3.5)))
-			end
-		end)
-	end
-
-	local bold = gfx.getSystemFont("bold")
-	gfx.drawText("*Score*", (UITimer.value-2)*blockSize, 9*blockSize)
-	gfx.drawText("*"..math.floor(score).."*", (UITimer.value)*blockSize-bold:getTextWidth(math.floor(score))/2, 11*blockSize)
-	gfx.drawText("*Highscore*", (UITimer.value-3.5)*blockSize, 13*blockSize)
-	gfx.drawText("*"..highscore.."*", (UITimer.value)*blockSize-bold:getTextWidth(highscore)/2, 15*blockSize)
-
-	gfx.drawText("*Level*", dwidth-(UITimer.value+2)*blockSize, 9*blockSize)
-	gfx.drawText("*"..level.."*", (dwidth+bold:getTextWidth(level)/2)-(UITimer.value+0.5)*blockSize, 11*blockSize)
-	gfx.drawText("*Lines*", dwidth-(UITimer.value+2)*blockSize, 13*blockSize)
-	gfx.drawText("*"..completedLines.."*", (dwidth-bold:getTextWidth(completedLines)/2)-(UITimer.value)*blockSize, 15*blockSize)
+	drawHeldPiece()
+	drawNextPiece()
+	drawScores()
+	drawLevelInfo()
 
 	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
@@ -621,6 +660,8 @@ local function drawGame()
 
 	time.updateTimers()
 end
+
+
 
 local _update, _draw = updateGame, drawGame
 
@@ -707,6 +748,22 @@ local menu = {
 		end
 	},
 	{
+		name = "Big blocks",
+		type = "crossmark",
+		state = bigBlocks,
+		ontoggle = function(val)
+			bigBlocks = val
+			if bigBlocks then
+				blockSize = 13
+			else 
+				blockSize = 11
+			end
+			computeGridOffset()
+			
+			saveData("bigBlocks", bigBlocks)
+		end,
+	},
+	{
 		name = "Music",
 		type = "slider",
 		min = 0,
@@ -727,7 +784,7 @@ local menu = {
 			sounds = val
 			saveData("sounds", sounds)
 		end,
-	}
+	},
 }
 
 local menuHeight = #menu*bold:getHeight()
