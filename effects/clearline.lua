@@ -14,7 +14,7 @@ local function random(min, max)
 end
 
 function ClearLine:init(y)
-	self.pos = geom.point.new(offsetX*blockSize,y*blockSize)
+	self.pos = geom.point.new(offsetX*blockSize,(offsetY+y)*blockSize)
 	self.widthTimer = playdate.timer.new(250, gridXCount*blockSize, 0, playdate.easingFunctions.inOutCubic)
 	self.particle = nil
 	--self.widthTimer.reverseEasingFunction = playdate.easingFunctions.outInCubic
@@ -48,10 +48,13 @@ function ClearLine:update()
 end
 
 function ClearLine:draw()
+	gfx.pushContext()
+	gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
 	gfx.fillRect(self.pos.x, self.pos.y, self.widthTimer.value, blockSize)
 	if self.particle then
 		self.particle:draw()
 		self.particle:update()
 		if self.particle.dead then self.dead = true end
 	end
+	gfx.popContext()
 end
