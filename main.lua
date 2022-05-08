@@ -519,6 +519,53 @@ local function updateGame()
 	end -- state machine
 end
 
+
+local function drawScores()
+	local bold = gfx.getSystemFont("bold")
+	gfx.drawTextAligned("*Score*", (UITimer.value-2)*blockSize, 9*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*blockSize, 11*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*blockSize, 13*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*blockSize, 15*blockSize, kTextAlignment.center)
+end
+
+local function drawLevelInfo()
+	local bold = gfx.getSystemFont("bold")
+
+	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*blockSize, 9*blockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*blockSize, 11*blockSize,kTextAlignment.center)
+	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*blockSize, 13*blockSize, kTextAlignment.center)
+	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*blockSize, 15*blockSize, kTextAlignment.center)
+end
+
+local function drawHeldPiece() -- draw held piece
+	holdFrameImage:drawCentered((UITimer.value-2)*blockSize, 5*blockSize-1)
+	if heldPiece then
+		loopThroughBlocks(function(_, x, y)
+			local block = pieceStructures[heldPiece][1][y][x]
+			if block ~= ' ' then
+				local acp = heldPiece ~= 1 and heldPiece ~= 2
+				drawBlock('*', x+(UITimer.value-(acp and 3.25 or 3.75 )), y+(acp and 4 or 3))
+			end
+		end)
+	end
+end
+
+
+local function drawNextPiece() -- draw next piece
+	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value-1)*blockSize)+2, 5*blockSize-1)
+	loopThroughBlocks(function(_, x, y)
+		local nextPiece = sequence[#sequence]
+		local block = pieceStructures[nextPiece][1][y][x]
+		if block ~= ' ' then
+			local acp = nextPiece ~= 1 and nextPiece ~= 2
+			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value-(acp and 0.5 or 0)), y+(acp and 4 or 3))
+		end
+	end)
+end
+
+
+
+
 local function drawGame()
 	gfx.pushContext()
 
@@ -581,37 +628,10 @@ local function drawGame()
 
 	gfx.setDrawOffset(0,0)
 
-	nextFrameImage:drawCentered(((dwidth+UITimer.value)-(UITimer.value+1)*blockSize)+2, 5*blockSize-1)
-	loopThroughBlocks(function(_, x, y)
-		local nextPiece = sequence[#sequence]
-		local block = pieceStructures[nextPiece][1][y][x]
-		if block ~= ' ' then
-			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/blockSize)-(UITimer.value+(acp and 1.5 or 2)), y+(acp and 4 or (nextPiece == 2 and 3 or 3.5)))
-		end
-	end)
-
-	holdFrameImage:drawCentered(UITimer.value*blockSize-1, 5*blockSize-1)
-	if heldPiece then
-		loopThroughBlocks(function(_, x, y)
-			local block = pieceStructures[heldPiece][1][y][x]
-			if block ~= ' ' then
-				local acp = heldPiece ~= 1 and heldPiece ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 1.5 or 2)), y+(acp and 4 or (heldPiece == 2 and 3 or 3.5)))
-			end
-		end)
-	end
-
-	local bold = gfx.getSystemFont("bold")
-	gfx.drawText("*Score*", (UITimer.value-2)*blockSize, 9*blockSize)
-	gfx.drawText("*"..math.floor(score).."*", (UITimer.value)*blockSize-bold:getTextWidth(math.floor(score))/2, 11*blockSize)
-	gfx.drawText("*Highscore*", (UITimer.value-3.5)*blockSize, 13*blockSize)
-	gfx.drawText("*"..highscore.."*", (UITimer.value)*blockSize-bold:getTextWidth(highscore)/2, 15*blockSize)
-
-	gfx.drawText("*Level*", dwidth-(UITimer.value+2)*blockSize, 9*blockSize)
-	gfx.drawText("*"..level.."*", (dwidth+bold:getTextWidth(level)/2)-(UITimer.value+0.5)*blockSize, 11*blockSize)
-	gfx.drawText("*Lines*", dwidth-(UITimer.value+2)*blockSize, 13*blockSize)
-	gfx.drawText("*"..completedLines.."*", (dwidth-bold:getTextWidth(completedLines)/2)-(UITimer.value)*blockSize, 15*blockSize)
+	drawHeldPiece()
+	drawNextPiece()
+	drawScores()
+	drawLevelInfo()
 
 	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
@@ -621,6 +641,8 @@ local function drawGame()
 
 	time.updateTimers()
 end
+
+
 
 local _update, _draw = updateGame, drawGame
 
