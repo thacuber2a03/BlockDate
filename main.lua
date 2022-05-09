@@ -675,6 +675,8 @@ local bold = gfx.getSystemFont("bold")
 local menuYTimer, menuWidth
 
 local function closeMenu()
+	menuOpen = false
+
 	-- Sorry, I love back easing XD
 	menuYTimer = time.new(250, dheight/2, dheight, easings.inBack)
 	patternTimer = time.new(250, #patterns, 1,easings.inBack)
@@ -686,7 +688,6 @@ local menu = {
 		type = "button",
 		onpress = function()
 			closeMenu()
-			menuOpen = false
 		end,
 	},
 	{
@@ -808,6 +809,11 @@ function updateMenu()
 			end
 			
 			commitSaveData()
+		end
+		
+		if btnp("b") then
+			menuClickSound:play()
+			closeMenu()
 		end
 
 		if menuItem.type == "slider" then
