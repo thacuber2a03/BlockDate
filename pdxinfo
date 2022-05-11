@@ -2,5 +2,6 @@ name=Playtris
 author=@thacuber2a03
 description=It's some random tetromino game for the Playdate console. And that's about it.
 version=1.5.1
+buildNumber=5
 imagePath=launcher
 bundleID=com.thacuber.tetris
