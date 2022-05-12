@@ -966,13 +966,15 @@ bgmIntro:play()
 
 function playdate.gameWillPause()
 	
-	local img = gfx.image.new(dwidth, dheight, darkMode and gfx.kColorBlack or gfx.kColorWhite)
+	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
 	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
 	
 	gfx.lockFocus(img)
 	gfx.setFont(bold)
 	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
 	gfx.unlockFocus()
+
+	img:setInverted(darkMode)
 
 	playdate.setMenuImage(img)
 
