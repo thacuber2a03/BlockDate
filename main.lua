@@ -964,6 +964,20 @@ end)
 
 bgmIntro:play()
 
+function playdate.gameWillPause()
+	
+	local img = gfx.image.new(dwidth, dheight, darkMode and gfx.kColorBlack or gfx.kColorWhite)
+	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
+	
+	gfx.lockFocus(img)
+	gfx.setFont(bold)
+	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
+	gfx.unlockFocus()
+
+	playdate.setMenuImage(img)
+
+end
+
 function playdate.update()
 	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
 		bgmLoop:play(0)
