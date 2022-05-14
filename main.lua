@@ -555,7 +555,6 @@ local function updateGame()
 end
 
 local function drawScores()
-	local bold = gfx.getSystemFont("bold")
 	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
 	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
 	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
@@ -563,8 +562,6 @@ local function drawScores()
 end
 
 local function drawLevelInfo()
-	local bold = gfx.getSystemFont("bold")
-
 	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
 	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
 	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
@@ -929,7 +926,6 @@ sysmenu:addMenuItem("options", function()
 		menuOpen = not menuOpen
 		if not menuOpen then closeMenu()
 		else
-			bold = gfx.getSystemFont("bold")
 			menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
 			menuHeight = #menu*bold:getHeight()
 			local longestString = ""
@@ -967,6 +963,22 @@ sysmenu:addMenuItem("restart", function()
 end)
 
 bgmIntro:play()
+
+function playdate.gameWillPause()
+	
+	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
+	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
+	
+	gfx.lockFocus(img)
+	gfx.setFont(bold)
+	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
+	gfx.unlockFocus()
+
+	img:setInverted(darkMode)
+
+	playdate.setMenuImage(img)
+
+end
 
 function playdate.update()
 	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
