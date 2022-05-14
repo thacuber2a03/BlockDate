@@ -792,6 +792,7 @@ local menu = {
 		onchange = function(val)
 			musicVolume = val
 			saveData("music", musicVolume)
+			updateMusicVolume()
 		end,
 	},
 	{
@@ -803,6 +804,7 @@ local menu = {
 		onchange = function(val)
 			soundsVolume = val
 			saveData("sounds", soundsVolume)
+			updateSoundVolume()
 		end,
 	},
 }
@@ -962,7 +964,33 @@ sysmenu:addMenuItem("restart", function()
 	end
 end)
 
+function updateMusicVolume()
+	for i,v in ipairs(songs) do
+		if v:getVolume() ~= musicVolume then
+			v:setVolume(musicVolume)
+		end
+	end
+end
+
+function updateSoundVolume()
+	for i,v in ipairs(sfx) do
+		if v:getVolume() ~= soundsVolume then
+			v:setVolume(soundsVolume)
+		end
+	end
+end
+
+updateMusicVolume()
+updateSoundVolume()
 bgmIntro:play()
+
+function playdate.update()
+	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
+		bgmLoop:play(0)
+	end
+	_update()
+	_draw()
+end
 
 function playdate.gameWillPause()
 	
@@ -978,24 +1006,6 @@ function playdate.gameWillPause()
 
 	playdate.setMenuImage(img)
 
-end
-
-function playdate.update()
-	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
-		bgmLoop:play(0)
-	end
-	for i,v in ipairs(songs) do
-		if v:getVolume() ~= musicVolume then
-			v:setVolume(musicVolume)
-		end
-	end
-	for i,v in ipairs(sfx) do
-		if v:getVolume() ~= soundsVolume then
-			v:setVolume(soundsVolume)
-		end
-	end
-	_update()
-	_draw()
 end
 
 function playdate.gameWillTerminate() commitSaveData() end
