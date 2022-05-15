@@ -573,7 +573,6 @@ local function updateGame()
 end
 
 local function drawScores()
-	local bold = gfx.getSystemFont("bold")
 	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
 	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
 	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
@@ -581,8 +580,6 @@ local function drawScores()
 end
 
 local function drawLevelInfo()
-	local bold = gfx.getSystemFont("bold")
-
 	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
 	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
 	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
@@ -767,6 +764,8 @@ local bold = gfx.getSystemFont("bold")
 local menuYTimer, menuWidth
 
 local function closeMenu()
+	menuOpen = false
+
 	-- Sorry, I love back easing XD
 	menuYTimer = time.new(250, dheight/2, dheight, easings.inBack)
 	patternTimer = time.new(250, #patterns, 1,easings.inBack)
@@ -778,7 +777,6 @@ local menu = {
 		type = "button",
 		onpress = function()
 			closeMenu()
-			menuOpen = false
 		end,
 	},
 	{
@@ -860,6 +858,7 @@ local menu = {
 		onchange = function(val)
 			musicVolume = val
 			saveData("music", musicVolume)
+			updateMusicVolume()
 		end,
 	},
 	{
@@ -871,6 +870,7 @@ local menu = {
 		onchange = function(val)
 			soundsVolume = val
 			saveData("sounds", soundsVolume)
+			updateSoundVolume()
 		end,
 	},
 }
@@ -900,6 +900,11 @@ function updateMenu()
 			end
 			
 			commitSaveData()
+		end
+		
+		if btnp("b") then
+			menuClickSound:play()
+			closeMenu()
 		end
 
 		if menuItem.type == "slider" then
@@ -991,7 +996,6 @@ sysmenu:addMenuItem("options", function()
 		menuOpen = not menuOpen
 		if not menuOpen then closeMenu()
 		else
-			bold = gfx.getSystemFont("bold")
 			menuYTimer = time.new(250, 0, dheight/2, easings.outBack)
 			menuHeight = #menu*bold:getHeight()
 			local longestString = ""
@@ -1028,24 +1032,48 @@ sysmenu:addMenuItem("restart", function()
 	end
 end)
 
+function updateMusicVolume()
+	for i,v in ipairs(songs) do
+		if v:getVolume() ~= musicVolume then
+			v:setVolume(musicVolume)
+		end
+	end
+end
+
+function updateSoundVolume()
+	for i,v in ipairs(sfx) do
+		if v:getVolume() ~= soundsVolume then
+			v:setVolume(soundsVolume)
+		end
+	end
+end
+
+updateMusicVolume()
+updateSoundVolume()
 bgmIntro:play()
 
 function playdate.update()
 	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
 		bgmLoop:play(0)
 	end
-	for i,v in ipairs(songs) do
-		if v:getVolume() ~= musicVolume then
-			v:setVolume(musicVolume)
-		end
-	end
-	for i,v in ipairs(sfx) do
-		if v:getVolume() ~= soundsVolume then
-			v:setVolume(soundsVolume)
-		end
-	end
 	_update()
 	_draw()
+end
+
+function playdate.gameWillPause()
+	
+	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
+	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
+	
+	gfx.lockFocus(img)
+	gfx.setFont(bold)
+	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
+	gfx.unlockFocus()
+
+	img:setInverted(darkMode)
+
+	playdate.setMenuImage(img)
+
 end
 
 function playdate.gameWillTerminate() commitSaveData() end
