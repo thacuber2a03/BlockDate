@@ -46,6 +46,7 @@ function Sash:update() end
 
 function Sash:draw()
 	gfx.pushContext()
+	gfx.setDrawOffset(0, 0)
 	if self.yTimer then
 		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, gfx.getSystemFont("bold"):getHeight()*2)
 	end
