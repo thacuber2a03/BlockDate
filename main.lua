@@ -201,6 +201,8 @@ local ghostBlockImagetableBig = loadImagetable("ghost-block/big/ghost-block")
 
 local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
+local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -232,6 +234,7 @@ local scoreGoal = score
 
 local refreshNeeded = true
 local screenClearNeeded = false
+local forceInertGridRefresh = false
 
 local function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
@@ -277,7 +280,6 @@ end
 
 
 local function rotate(rotation)
-	refreshNeeded = true
 	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
 	testRotation %= #pieceStructures[piece.type]
@@ -291,6 +293,7 @@ local function rotate(rotation)
 			piece.x = tx
 			piece.y = ty
 			piece.rotation = testRotation
+			refreshNeeded = true
 			break
 		end
 	end
@@ -301,12 +304,12 @@ local function rotate(rotation)
 end
 
 local function move(direction)
-	refreshNeeded = true
 	ghostPieceY = piece.y
 	local testX = piece.x + direction
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
 		piece.x = testX
+		refreshNeeded = true
 	end
 
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
@@ -617,6 +620,7 @@ end
 local function drawGame()
 	if refreshNeeded or screenClearNeeded then
 		refreshNeeded = false
+		local screenWasCleared = false
 		gfx.pushContext()
 
 		if darkMode then
@@ -631,6 +635,7 @@ local function drawGame()
 		if screenClearNeeded then
 			gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
 			screenClearNeeded = false
+			screenWasCleared = true
 		end
 
 		-- Update screen shake
@@ -689,13 +694,33 @@ local function drawGame()
 
 		for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
 
-		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
-		for y = 1, gridYCount do
-			for x = 1, gridXCount do
-				drawBlock(inert[y][x], x + offsetX, y + offsetY, blockSize)
+		-- draw inert grid
+		if pieceHasChanged or forceInertGridRefresh then
+			forceInertGridRefresh = false
+			if bigBlocks then
+				inertGridImageBig:clear(gfx.kColorClear)
+				gfx.pushContext(inertGridImageBig)
+			else
+				inertGridImage:clear(gfx.kColorClear)
+				gfx.pushContext(inertGridImage)
 			end
+			
+			gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+			for y = 1, gridYCount do
+				for x = 1, gridXCount do
+					drawBlock(inert[y][x], x, y, blockSize)
+				end
+			end
+			gfx.popContext()
 		end
 
+		if bigBlocks then
+			inertGridImageBig:draw(offsetX * blockSize, offsetY * blockSize)
+		else
+			inertGridImage:draw(offsetX * blockSize, offsetY * blockSize)
+		end
+
+		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
 		loopThroughBlocks(function(_, x, y)
 			if not lost then
 				local block = pieceStructures[piece.type][piece.rotation+1][y][x]
@@ -716,10 +741,12 @@ local function drawGame()
 
 		gfx.setDrawOffset(0,0)
 
-		drawHeldPiece()
-		drawNextPiece()
-		drawScores()
-		drawLevelInfo()
+		if pieceHasChanged or screenWasCleared then
+			drawHeldPiece()
+			drawNextPiece()
+			drawScores()
+			drawLevelInfo()
+		end
 		gfx.fillRect(0, 0, 400, introRectT.value)
 
 		gfx.popContext()
@@ -917,6 +944,7 @@ function updateMenu()
 
 	if math.abs(dheight-menuYTimer.value) < 0.5 then
 		screenClearNeeded = true
+		forceInertGridRefresh = true
 		playdate.inputHandlers.push(inputHandlers)
 		_update = updateGame
 		_draw = drawGame
