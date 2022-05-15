@@ -649,11 +649,11 @@ local function drawGame()
 			
 			-- Just clean up the area below the grid if the whole screen wasn't cleared
 			if not screenWasCleared then
-			gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
-			gfx.fillRect(
-				offsetX*blockSize,    dheight-offsetY*blockSize,
-				gridXCount*blockSize, offsetY*blockSize
-			)
+				gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+				gfx.fillRect(
+					offsetX*blockSize,    dheight-offsetY*blockSize,
+					gridXCount*blockSize, offsetY*blockSize
+				)
 			end
 
 			gfx.setDrawOffset(0,displayYPos)
