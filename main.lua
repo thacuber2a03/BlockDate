@@ -77,6 +77,8 @@ gridXCount, gridYCount = 10, 18
 pieceXCount, pieceYCount = 4, 4
 
 uiBlockSize = 11
+defaultBlockSize = 11
+bigBlockSize = 13
 
 
 -- this looks so weird
@@ -93,9 +95,9 @@ uiBlockSize = 11
 	loadData("bigBlocks") or false
 
 if bigBlocks then
-	blockSize = 13
+	blockSize = bigBlockSize
 else 
-	blockSize = 11
+	blockSize = defaultBlockSize
 end
 
 computeGridOffset()
@@ -105,6 +107,9 @@ computeGridOffset()
 ------------------------
 
 local introRectT = time.new(100, 400, 0, easings.outCubic)
+introRectT.updateCallback = function(timer)
+	screenClearNeeded = true
+end
 
 local highscore = loadData("highscore") or 0
 
@@ -194,6 +199,11 @@ local crossmarkImage = loadImage("crossmark")
 local ghostBlockImagetable = loadImagetable("ghost-block/normal/ghost-block")
 local ghostBlockImagetableBig = loadImagetable("ghost-block/big/ghost-block")
 
+local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
+local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
+local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+
 ------------------------------------------
 -- Game related functions and variables --
 ------------------------------------------
@@ -221,6 +231,10 @@ local timer = 0
 local timerLimit = 30
 local score = 0
 local scoreGoal = score
+
+local refreshNeeded = true
+local screenClearNeeded = false
+local forceInertGridRefresh = false
 
 local function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
@@ -260,6 +274,8 @@ local function newPiece(type)
 	end
 	pieceHasChanged = true
 	if #sequence == 0 then newSequence() end
+
+	screenClearNeeded = true
 end
 
 
@@ -277,6 +293,7 @@ local function rotate(rotation)
 			piece.x = tx
 			piece.y = ty
 			piece.rotation = testRotation
+			refreshNeeded = true
 			break
 		end
 	end
@@ -292,6 +309,7 @@ local function move(direction)
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
 		piece.x = testX
+		refreshNeeded = true
 	end
 
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
@@ -339,8 +357,13 @@ local function reset()
 	heldPiece = nil
 	pieceHasChanged = false
 
-	UITimer = time.new(500, -4, 8, easings.outCubic)
+	local function timerCallback(timer)
+		screenClearNeeded = true
+	end
 
+	UITimer = time.new(500, -4, 8, easings.outCubic)
+	UITimer.updateCallback = timerCallback
+	UITimer.timerEndedCallback = timerCallback
 	inert = {}
 	for y = 1, gridYCount do
 		inert[y] = {}
@@ -366,13 +389,10 @@ local function drawBlock(block, x, y, size)
 		size-1,
 		size-1
 	)
-	
-	if grid then
-		gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+
+	if block ~= " " then
 		gfx.fillRect(rect)
-		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
-		gfx[(block ~= " " and "fillRect" or "drawRect")](rect)
-	elseif block ~= " " then gfx.fillRect(rect) end
+	end
 end
 
 local function drawTexturedBlock(image, x, y, size)
@@ -446,6 +466,7 @@ local function updateGame()
 		timer += level
 		if timer >= timerLimit then
 			timer = 0
+			refreshNeeded = true
 			
 			local testY = piece.y + 1
 
@@ -512,7 +533,6 @@ local function updateGame()
 					if not allclear then break end
 				end
 
-
 				if clearedLines >= 4 then
 					stopAllComboSounds()
 					tetrisSound:play()
@@ -537,6 +557,7 @@ local function updateGame()
 			end -- complete a row
 		end -- timer is over timerLimit
 	else
+		refreshNeeded = true
 		if not e then
 			inert[lostY] = {}
 			for i=1, gridXCount do inert[lostY][i] = ' ' end
@@ -594,93 +615,165 @@ local function drawNextPiece() -- draw next piece
 end
 
 local function drawGame()
-	gfx.pushContext()
+	if refreshNeeded or screenClearNeeded then
+		refreshNeeded = false
+		local screenWasCleared = false
+		gfx.pushContext()
 
-	if darkMode then
-		gfx.setColor(gfx.kColorWhite)
-		gfx.setImageDrawMode("fillWhite")
-	else
-		gfx.setColor(gfx.kColorBlack)
-		gfx.setImageDrawMode("copy")
-	end
-
-	gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
-
-	if displayYPos ~= 0 then
-		displayYPos+=((0-displayYPos)*0.25)
-		gfx.setDrawOffset(0,displayYPos)
-	end
-
-	local function updateEffect(t,i,e)
-		if e.dead then
-			pcall(function() table.remove(t, i) end)
+		if darkMode then
+			gfx.setColor(gfx.kColorWhite)
+			gfx.setImageDrawMode("fillWhite")
 		else
-			e:update()
-			e:draw()
+			gfx.setColor(gfx.kColorBlack)
+			gfx.setImageDrawMode("copy")
 		end
-	end
 
-	if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
+		-- Only clear the screen when we absolutely need to
+		if screenClearNeeded then
+			gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+			screenClearNeeded = false
+			screenWasCleared = true
+		end
 
-	if not grid then
+		-- Update screen shake
+		if displayYPos ~= 0 then
+			refreshNeeded = true
+			displayYPos+=((0-displayYPos)*0.25)
+			
+			-- Just clean up the area below the grid instead of a full screen clear
+			gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+			gfx.fillRect(
+				offsetX*blockSize,    dheight-offsetY*blockSize,
+				gridXCount*blockSize, offsetY*blockSize
+			)
+
+			gfx.setDrawOffset(0,displayYPos)
+
+			-- Round to zero so we don't keep refreshing forever
+			if displayYPos < 0.25 then
+				displayYPos = 0
+			end
+		end
+
+		local function updateEffect(t,i,e)
+			if e.dead then
+				pcall(function() table.remove(t, i) end)
+			else
+				e:update()
+				e:draw()
+				screenClearNeeded = true
+			end
+		end
+
+		if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
+
 		gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
 		gfx.fillRect(
 			offsetX*blockSize,    offsetY*blockSize,
 			gridXCount*blockSize, gridYCount*blockSize
 		)
-	end
 
-	for i,l in ipairs(lines) do updateEffect(lines,i,l) end
+		for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
-	if not grid then
-		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
-		gfx.drawRect(
-			offsetX*blockSize,    offsetY*blockSize,
-			gridXCount*blockSize, gridYCount*blockSize
-		)
-	end
-
-	for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
-
-	for y = 1, gridYCount do
-		for x = 1, gridXCount do
-			drawBlock(inert[y][x], x + offsetX, y + offsetY, blockSize)
-		end
-	end
-
-	loopThroughBlocks(function(_, x, y)
-		if not lost then
-			local block = pieceStructures[piece.type][piece.rotation+1][y][x]
-			if block ~= ' ' then
-				drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
-				if ghost then
-					local _, millis = playdate.getSecondsSinceEpoch()
-					local selectedImagetable = (bigBlocks and ghostBlockImagetableBig or ghostBlockImagetable)
-					drawTexturedBlock(
-						selectedImagetable:getImage(1+math.floor(millis/100%#selectedImagetable)),
-						x + piece.x + offsetX, y + ghostPieceY + offsetY,
-						blockSize
-					)
-				end
+		if not grid then
+			gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+			gfx.drawRect(
+				offsetX*blockSize,    offsetY*blockSize,
+				gridXCount*blockSize, gridYCount*blockSize
+			)
+		else
+			if bigBlocks then
+				gridImageBig:draw(offsetX * blockSize, offsetY * blockSize)
+			else
+				gridImage:draw(offsetX * blockSize, offsetY * blockSize)
 			end
 		end
-	end)
 
-	gfx.setDrawOffset(0,0)
+		for i, l in ipairs(clearLines) do updateEffect(clearLines,i,l) end
 
-	drawHeldPiece()
-	drawNextPiece()
-	drawScores()
-	drawLevelInfo()
+		-- draw inert grid
+		if pieceHasChanged or forceInertGridRefresh then
+			forceInertGridRefresh = false
+			if bigBlocks then
+				inertGridImageBig:clear(gfx.kColorClear)
+				gfx.pushContext(inertGridImageBig)
+			else
+				inertGridImage:clear(gfx.kColorClear)
+				gfx.pushContext(inertGridImage)
+			end
+			
+			gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+			for y = 1, gridYCount do
+				for x = 1, gridXCount do
+					drawBlock(inert[y][x], x, y, blockSize)
+				end
+			end
+			gfx.popContext()
+		end
 
-	gfx.fillRect(0, 0, 400, introRectT.value)
+		if bigBlocks then
+			inertGridImageBig:draw(offsetX * blockSize, offsetY * blockSize)
+		else
+			inertGridImage:draw(offsetX * blockSize, offsetY * blockSize)
+		end
 
-	gfx.popContext()
+		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+		loopThroughBlocks(function(_, x, y)
+			if not lost then
+				local block = pieceStructures[piece.type][piece.rotation+1][y][x]
+				if block ~= ' ' then
+					drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
+					if ghost then
+						local _, millis = playdate.getSecondsSinceEpoch()
+						local selectedImagetable = (bigBlocks and ghostBlockImagetableBig or ghostBlockImagetable)
+						drawTexturedBlock(
+							selectedImagetable:getImage(1+math.floor(millis/100%#selectedImagetable)),
+							x + piece.x + offsetX, y + ghostPieceY + offsetY,
+							blockSize
+						)
+					end
+				end
+			end
+		end)
 
+		gfx.setDrawOffset(0,0)
+
+		if pieceHasChanged or screenWasCleared then
+			drawHeldPiece()
+			drawNextPiece()
+			drawScores()
+			drawLevelInfo()
+		end
+		gfx.fillRect(0, 0, 400, introRectT.value)
+
+		gfx.popContext()
+		
+	end
+	
 	time.updateTimers()
 end
 
+function generateGridImage(image, gridBlockSize)
+	gfx.pushContext(image)
+	image:clear(gfx.kColorClear)
+	gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+	for y = 1, gridYCount do
+		for x = 1, gridXCount do
+			local rect = geom.rect.new(
+				(x-1)*gridBlockSize,
+				(y-1)*gridBlockSize,
+				gridBlockSize-1,
+				gridBlockSize-1
+			)
+			gfx.drawRect(rect)
+		end
+	end
 
+	gfx.popContext()
+end
+
+generateGridImage(gridImage, defaultBlockSize)
+generateGridImage(gridImageBig, bigBlockSize)
 
 local _update, _draw = updateGame, drawGame
 
@@ -855,6 +948,8 @@ function updateMenu()
 	end
 
 	if math.abs(dheight-menuYTimer.value) < 0.5 then
+		screenClearNeeded = true
+		forceInertGridRefresh = true
 		playdate.inputHandlers.push(inputHandlers)
 		_update = updateGame
 		_draw = drawGame
@@ -863,7 +958,8 @@ function updateMenu()
 end
 
 function drawMenu()
-	gfx.pushContext()
+  gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+  gfx.pushContext()
   backgroundImage:draw(0, 0)
   gfx.setPattern(patterns[math.floor(patternTimer.value)])
   gfx.fillRect(0, 0, dwidth, dheight)
