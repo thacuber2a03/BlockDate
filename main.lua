@@ -413,6 +413,13 @@ local function addPieceToInertGrid()
 	end)
 end
 
+function addSash(message)
+	if sash then
+		table.insert(sashes, Sash(message))
+		screenClearNeeded = true
+	end
+end
+
 reset()
 
 local function lose()
@@ -536,13 +543,13 @@ local function updateGame()
 				if clearedLines >= 4 then
 					stopAllComboSounds()
 					tetrisSound:play()
-					if sash then table.insert(sashes, Sash("Playtris!")) end
+					addSash("Playtris!")
 					scoreGoal += 15 * combo
 				end
 
 				if allclear and sash then
 					scoreGoal += 25 * combo
-					table.insert(sashes, Sash("All clear!"))
+					addSash("All clear!")
 				end
 
 				if not completedLine then
@@ -640,12 +647,14 @@ local function drawGame()
 			refreshNeeded = true
 			displayYPos+=((0-displayYPos)*0.25)
 			
-			-- Just clean up the area below the grid instead of a full screen clear
-			gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
-			gfx.fillRect(
-				offsetX*blockSize,    dheight-offsetY*blockSize,
-				gridXCount*blockSize, offsetY*blockSize
-			)
+			-- Just clean up the area below the grid if the whole screen wasn't cleared
+			if not screenWasCleared then
+				gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+				gfx.fillRect(
+					offsetX*blockSize,    dheight-offsetY*blockSize,
+					gridXCount*blockSize, offsetY*blockSize
+				)
+			end
 
 			gfx.setDrawOffset(0,displayYPos)
 
@@ -1114,6 +1123,7 @@ function playdate.deviceWillSleep() commitSaveData() end
 
 function playdate.keyPressed(key)
 	if key == "L" then
+		forceInertGridRefresh = true
 		for i=1, 4 do table.remove(inert) end
 		for i=1, 4 do
 			table.insert(inert, (function()
@@ -1126,6 +1136,7 @@ function playdate.keyPressed(key)
 			end)())
 		end
 	elseif key == "T" then
+		forceInertGridRefresh = true
 		-- Generate a TSpin scenario
 		for i=1, 5 do table.remove(inert) end
 		table.insert(inert, {"*", "*", "*", " ", " ", " ", " ", "*", "*", "*"})
