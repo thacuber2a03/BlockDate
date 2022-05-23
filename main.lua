@@ -79,6 +79,7 @@ pieceXCount, pieceYCount = 4, 4
 uiBlockSize = 11
 defaultBlockSize = 11
 bigBlockSize = 13
+maxLockDelayRotations = 15
 
 
 -- this looks so weird
@@ -229,6 +230,8 @@ local inert = {}
 
 local timer = 0
 local timerLimit = 30
+local lockDelayRotationsRemaining = maxLockDelayRotations
+local lockDelay = 15
 local score = 0
 local scoreGoal = score
 
@@ -289,11 +292,17 @@ local function rotate(rotation)
 	for i=1, #chosenWallKickTests do
 		local tx = piece.x+chosenWallKickTests[i][1]
 		local ty = piece.y+chosenWallKickTests[i][2]
-		if canPieceMove(tx, ty, testRotation) then
-			piece.x = tx
-			piece.y = ty
-			piece.rotation = testRotation
-			refreshNeeded = true
+		local pieceCanMove = canPieceMove(tx, ty, testRotation)
+		if pieceCanMove
+		and lockDelayRotationsRemaining == maxLockDelayRotations then
+			finishRotation(tx, ty, testRotation)
+			break
+		elseif (pieceCanMove or canPieceMove(tx, ty-1, testRotation))
+		and lockDelayRotationsRemaining > 0 then
+			lockDelayRotationsRemaining -= 1
+			lockDelay = 15
+			finishRotation(tx, ty, testRotation)
+			if not pieceCanMove then piece.y -= 1 end
 			break
 		end
 	end
@@ -303,12 +312,25 @@ local function rotate(rotation)
 	end
 end
 
+function finishRotation(tx, ty, testRotation)
+	piece.x = tx
+	piece.y = ty
+	piece.rotation = testRotation
+	refreshNeeded = true
+end
+
+local function resetLockDelay()
+	lockDelayRotationsRemaining = maxLockDelayRotations
+	lockDelay = 15
+end
+
 local function move(direction)
 	ghostPieceY = piece.y
 	local testX = piece.x + direction
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
 		piece.x = testX
+		resetLockDelay()
 		refreshNeeded = true
 	end
 
@@ -333,6 +355,7 @@ local inputHandlers	= {
 			end
 			dropSound:play()
 			timer = timerLimit
+			lockDelay = 0
 			if shake then displayYPos = dist*1.25 end
 		end
 	end,
@@ -378,6 +401,7 @@ local function reset()
 	newPiece(table.remove(sequence))
 
 	timer = 0
+	resetLockDelay()
 	score = 0
 	scoreGoal = score
 end
@@ -424,6 +448,7 @@ reset()
 
 local function lose()
 	timer = 0
+	resetLockDelay()
 	lost = true
 	UITimer = time.new(500, 8, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
@@ -471,15 +496,27 @@ local function updateGame()
 		end
 
 		timer += level
+		lockDelay -= 1
 		if timer >= timerLimit then
-			timer = 0
 			refreshNeeded = true
 			
 			local testY = piece.y + 1
 
-			if canPieceMove(piece.x, testY, piece.rotation) then
+			local pieceCanMove = canPieceMove(piece.x, testY, piece.rotation)
+			if pieceCanMove
+			and lockDelayRotationsRemaining == maxLockDelayRotations then
 				piece.y = testY
+				resetLockDelay()
 			else
+				if lockDelay > 0 then
+					if pieceCanMove then
+						piece.y = testY
+					end
+					return
+				end
+				
+				resetLockDelay()
+
 				addPieceToInertGrid()
 
 				-- Find complete rows
@@ -562,6 +599,8 @@ local function updateGame()
 
 				if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
 			end -- complete a row
+			
+			timer = 0
 		end -- timer is over timerLimit
 	else
 		refreshNeeded = true
