@@ -671,7 +671,7 @@ local function updateGame()
 				resetLockDelay()
 				lastAction = "movement"
 			else
-				if lockDelay > = then
+				if lockDelay >= then
 					if pieceCanMove then
 						piece.y = test.y
 					end
