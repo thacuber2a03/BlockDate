@@ -271,10 +271,7 @@ local function newPiece(type)
 		rotation = 0,
 		type = type,
 	}
-	ghostPieceY = piece.y
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 	pieceHasChanged = true
 	if #sequence == 0 then newSequence() end
 
@@ -283,7 +280,6 @@ end
 
 
 local function rotate(rotation)
-	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
 	testRotation %= #pieceStructures[piece.type]
 
@@ -307,9 +303,7 @@ local function rotate(rotation)
 		end
 	end
 
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 end
 
 function finishRotation(tx, ty, testRotation)
@@ -325,7 +319,6 @@ local function resetLockDelay()
 end
 
 local function move(direction)
-	ghostPieceY = piece.y
 	local testX = piece.x + direction
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
@@ -334,6 +327,11 @@ local function move(direction)
 		refreshNeeded = true
 	end
 
+	updateGhost()
+end
+
+function updateGhost()
+	ghostPieceY = piece.y
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
 		ghostPieceY += 1
 	end
