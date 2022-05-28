@@ -81,7 +81,7 @@ pieceXCount, pieceYCount = 4, 4
 uiBlockSize = 11
 defaultBlockSize = 11
 bigBlockSize = 13
-
+maxLockDelayRotations = 15
 
 -- this looks so weird
 	shake, sash, ghost,
@@ -115,7 +115,7 @@ end
 
 local highscore = loadData("highscore") or 0
 
--- t spin detection coming soon probably
+-- t spin detection here :)
 local lastAction = ""
 
 -----------
@@ -137,8 +137,6 @@ local function loadSound(name)
 	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
 end
 
--- not yet used but will use...
--- at some point
 MUSICDIR = "assets/music/"
 local function loadMusic(name)
 	return assert(snd.fileplayer.new(MUSICDIR..name))
@@ -183,7 +181,6 @@ local sfx = {
 	dropSound, spinSound, moveSound,
 }
 
--- holy shit it finally was added
 local bgmIntro = loadMusic("bgmintro")
 local bgmLoop = loadMusic("bgmloop")
 
@@ -234,6 +231,8 @@ local inert = {}
 
 local timer = 0
 local timerLimit = 30
+local lockDelayRotationsRemaining = maxLockDelayRotations
+local lockDelay = 15
 local score = 0
 local scoreGoal = score
 
@@ -289,6 +288,20 @@ local function newPiece(type)
 	screenClearNeeded = true
 end
 
+local function finishRotation(tx, ty, testRotation)
+	piece.x = tx
+	piece.y = ty
+	piece.rotation = testRotation
+	refreshNeeded = true
+end
+
+local function updateGhost()
+	ghostPieceY = piece.y
+	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
+		ghostPieceY += 1
+	end
+end
+
 local function rotate(rotation)
 	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
@@ -313,33 +326,30 @@ local function rotate(rotation)
 
 	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][chosenRotation][(rotation==1 and "cw" or "ccw")]
 	for i=1, #chosenWallKickTests do
-		--print(wallkickdata[(piece.type~=1 and 1 or 2)][chosenRotation].name)
 		local tx = piece.x+chosenWallKickTests[i][1]
 		local ty = piece.y-chosenWallKickTests[i][2]
-		if piece.type == TPIECE and false then
-			print(
-				"Current x: "..piece.x,
-				"Goal x: "..tx
-			)
-			print(
-				"Current y: "..piece.y,
-				"Goal y: "..ty
-			)
-		end
-		if canPieceMove(tx, ty, testRotation) then
-			piece.x = tx
-			piece.y = ty
-			ghostPieceY = ty
-			piece.rotation = testRotation
-			refreshNeeded = true
-			movements += 1
-			lastAction = "rotation"
+		local pieceCanMove = canPieceMove(tx, ty, testRotation)
+		if pieceCanMove
+		and lockDelayRotationsRemaining == maxLockDelayRotations then
+			finishRotation(tx, ty, testRotation)
+			break
+		elseif (pieceCanMove or canPieceMove(tx, ty-1, testRotation))
+		and lockDelayRotationsRemaining > 0 then
+			lockDelayRotationsRemaining -= 1
+			lockDelay = 15
+			finishRotation(tx, ty, testRotation)
+			if not pieceCanMove then piece.y -= 1 end
 			break
 		end
 	end
 
-	while canPieceMove(piece.x, ghostPieceY + 1, testRotation) do ghostPieceY += 1 end
+	updateGhost()
 	spinSound:play()
+end
+
+local function resetLockDelay()
+	lockDelayRotationsRemaining = maxLockDelayRotations
+	lockDelay = 15
 end
 
 local function move(direction)
@@ -348,15 +358,13 @@ local function move(direction)
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
 		piece.x = testX
-		moveSound:play()
+		resetLockDelay()
 		refreshNeeded = true
-		movements += 1
+		moveSound:play()
 		lastAction = "movement"
 	end
 
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 end
 
 local function holdDirection(dir)
@@ -380,6 +388,7 @@ end
 
 local function lose()
 	timer = 0
+	resetLockDelay()
 	lost = true
 	UITimer = time.new(500, 8, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
@@ -519,7 +528,7 @@ local function lock()
 	if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
 end -- lock function
 
-local inputHandlers	= {
+local inputHandlers = {
 	upButtonDown = function()
 		if not lost and not menuOpen then
 			local dist = 0
@@ -530,8 +539,7 @@ local inputHandlers	= {
 			if dist ~= 0 then lastAction = "movement" end
 			dropSound:play()
 			--timer = timerLimit
-			lock()
-			forceInertGridRefresh = true
+			lockDelay = 0
 			if shake then displayYPos = dist*1.25 end
 		end
 	end,
@@ -562,10 +570,6 @@ local function reset()
 	heldPiece = nil
 	pieceHasChanged = false
 
-	lockDelay = 30
-	wasTouchingGround = false
-	movements = 0
-
 	local function timerCallback(timer)
 		screenClearNeeded = true
 	end
@@ -589,6 +593,7 @@ local function reset()
 	timer = 0
 	score = 0
 	scoreGoal = score
+	resetLockDelay()
 end
 
 local function drawBlock(block, x, y, size)
@@ -653,17 +658,32 @@ local function updateGame()
 		end
 
 		timer += level
+		lockDelay -= 1
 		if timer >= timerLimit then
-			timer = 0
 			refreshNeeded = true
 			
 			local testY = piece.y + 1
 
-			if canPieceMove(piece.x, testY, piece.rotation) then
+			local pieceCanMove = canPieceMove(piece.x, testY, piece.rotation)
+			if pieceCanMove
+			and lockDelayRotationsRemaining == maxLockDelayRotations then
 				piece.y = testY
+				resetLockDelay()
 				lastAction = "movement"
-			else lock() end -- complete a row
-			--if not canPieceMove(piece.x, piece.y+1, piece.rotation) then lock() end
+			else
+				if lockDelay > = then
+					if pieceCanMove then
+						piece.y = test.y
+					end
+					return
+				end
+				
+				resetLockDelay()
+				
+				lock()
+			end -- complete a row
+			
+			timer = 0
 		end -- timer is over timerLimit
 	else
 		refreshNeeded = true
