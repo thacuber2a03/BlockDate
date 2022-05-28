@@ -29,7 +29,7 @@ function Sash:init(text)
 	self.yTimer.discardOnCompletion = false
 	local textWidth = gfx.getSystemFont("bold"):getTextWidth(text)
 	setTimerEndCallback(self.yTimer, function()
-		self.textPosTimer = Timer(250, -textWidth, 10+textWidth/2, ease.outCubic)
+		self.textPosTimer = Timer(250, -textWidth, textWidth/2, ease.outCubic)
 		setTimerEndCallback(self.textPosTimer, function()
 			timer.performAfterDelay(500, function()
 				self.textPosTimer = Timer(250, 10+textWidth/2, dwidth, ease.inCubic)
@@ -46,7 +46,6 @@ function Sash:update() end
 
 function Sash:draw()
 	gfx.pushContext()
-	gfx.setDrawOffset(0, 0)
 	if self.yTimer then
 		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, gfx.getSystemFont("bold"):getHeight()*2)
 	end
