@@ -278,10 +278,7 @@ local function newPiece(type)
 		rotation = 0,
 		type = type,
 	}
-	ghostPieceY = piece.y
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 	pieceHasChanged = true
 	if #sequence == 0 then newSequence() end
 
@@ -293,9 +290,10 @@ local function finishRotation(tx, ty, testRotation)
 	piece.y = ty
 	piece.rotation = testRotation
 	refreshNeeded = true
+	lastAction = "rotation"
 end
 
-local function updateGhost()
+function updateGhost()
 	ghostPieceY = piece.y
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
 		ghostPieceY += 1
@@ -303,7 +301,6 @@ local function updateGhost()
 end
 
 local function rotate(rotation)
-	ghostPieceY = piece.y
 	local testRotation = piece.rotation + rotation
 	testRotation %= #pieceStructures[piece.type]
 
@@ -353,7 +350,6 @@ local function resetLockDelay()
 end
 
 local function move(direction)
-	ghostPieceY = piece.y
 	local testX = piece.x + direction
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
@@ -540,6 +536,8 @@ local inputHandlers = {
 			dropSound:play()
 			--timer = timerLimit
 			lockDelay = 0
+			lock()
+			forceInertGridRefresh = true
 			if shake then displayYPos = dist*1.25 end
 		end
 	end,
@@ -673,7 +671,7 @@ local function updateGame()
 			else
 				if lockDelay > 0 then
 					if pieceCanMove then
-						piece.y = test.y
+						piece.y = testY
 					end
 					return
 				end
@@ -949,6 +947,13 @@ local function closeMenu()
 end
 
 local menu = {
+	{
+		name = "Continue",
+		type = "button",
+		onpress = function()
+			closeMenu()
+		end,
+	},
 	{
 		name = "Ghost",
 		type = "crossmark",
