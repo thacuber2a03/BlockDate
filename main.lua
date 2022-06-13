@@ -25,7 +25,9 @@ import "CoreLibs/timer"
 import "CoreLibs/crank"
 
 import "pieces"
+import "tspindata"
 import "wallkickdata"
+import "constants"
 
 import "effects/endline"
 import "effects/clearline"
@@ -79,7 +81,7 @@ pieceXCount, pieceYCount = 4, 4
 uiBlockSize = 11
 defaultBlockSize = 11
 bigBlockSize = 13
-
+maxLockDelayRotations = 15
 
 -- this looks so weird
 	shake, sash, ghost,
@@ -113,7 +115,7 @@ end
 
 local highscore = loadData("highscore") or 0
 
--- t spin detection coming soon probably
+-- t spin detection here :)
 local lastAction = ""
 
 -----------
@@ -135,8 +137,6 @@ local function loadSound(name)
 	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
 end
 
--- not yet used but will use...
--- at some point
 MUSICDIR = "assets/music/"
 local function loadMusic(name)
 	return assert(snd.fileplayer.new(MUSICDIR..name))
@@ -156,7 +156,8 @@ end
 ------------
 
 local comboSounds = {}
-for i=1, 4 do table.insert(comboSounds, loadSound("combo"..i)) end
+for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
+
 local function stopAllComboSounds()
 	for i=1, 4 do
 		if comboSounds[i]:isPlaying() then comboSounds[i]:stop() end
@@ -164,21 +165,22 @@ local function stopAllComboSounds()
 end
 
 local dropSound = loadSound("drop")
-local tetrisSound = loadSound("tetris")
+local specialSound = loadSound("special")
 local holdSound = loadSound("hold")
+local spinSound = loadSound("spin")
+local moveSound = loadSound("movetrimmed")
 
-local menuScrollSound = loadSound("menu-scroll")
-local menuClickSound = loadSound("menu-click")
+local menuScrollSound = loadSound("menu/menu-scroll")
+local menuClickSound = loadSound("menu/menu-click")
+
 
 local sfx = {
-	dropSound,
-	tetrisSound,
+	specialSound,
 	holdSound,
-	menuScrollSound,
-	menuClickSound
+	menuScrollSound, menuClickSound,
+	dropSound, spinSound, moveSound,
 }
 
--- holy shit it finally was added
 local bgmIntro = loadMusic("bgmintro")
 local bgmLoop = loadMusic("bgmloop")
 
@@ -229,12 +231,20 @@ local inert = {}
 
 local timer = 0
 local timerLimit = 30
+local lockDelayRotationsRemaining = maxLockDelayRotations
+local lockDelay = 15
 local score = 0
 local scoreGoal = score
 
 local refreshNeeded = true
 local screenClearNeeded = false
 local forceInertGridRefresh = false
+
+local lastAction = "none"
+
+local function spawnSash(message)
+	if sash then table.insert(sashes, Sash(message)) end
+end
 
 local function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
@@ -268,62 +278,253 @@ local function newPiece(type)
 		rotation = 0,
 		type = type,
 	}
-	ghostPieceY = piece.y
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 	pieceHasChanged = true
 	if #sequence == 0 then newSequence() end
 
 	screenClearNeeded = true
 end
 
+local function finishRotation(tx, ty, testRotation)
+	piece.x = tx
+	piece.y = ty
+	piece.rotation = testRotation
+	refreshNeeded = true
+	lastAction = "rotation"
+end
 
-local function rotate(rotation)
+function updateGhost()
 	ghostPieceY = piece.y
-	local testRotation = piece.rotation + rotation
-	testRotation %= #pieceStructures[piece.type]
-
-	-- Implementing this took too much brain energy from me :(
-	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][testRotation+1][(rotation==1 and "cw" or "ccw")]
-	for i=1, #chosenWallKickTests do
-		local tx = piece.x+chosenWallKickTests[i][1]
-		local ty = piece.y+chosenWallKickTests[i][2]
-		if canPieceMove(tx, ty, testRotation) then
-			piece.x = tx
-			piece.y = ty
-			piece.rotation = testRotation
-			refreshNeeded = true
-			break
-		end
-	end
-
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
 		ghostPieceY += 1
 	end
 end
 
+local function rotate(rotation)
+	local testRotation = piece.rotation + rotation
+	testRotation %= #pieceStructures[piece.type]
+
+	-- temporary solve until I can figure out how to compact it
+	local chosenRotation = 1
+	if rotation == 1 then
+		if piece.rotation == 0 then end -- no changes
+		if piece.rotation == 1 then chosenRotation = 2 end
+		if piece.rotation == 2 then chosenRotation = 3 end
+		if piece.rotation == 3 then chosenRotation = 4 end
+	else
+		if piece.rotation == 0 then chosenRotation = 4 end
+		if piece.rotation == 1 then chosenRotation = 1 end
+		if piece.rotation == 2 then chosenRotation = 2 end
+		if piece.rotation == 3 then chosenRotation = 3 end
+	end
+
+	--assert(testRotation+1 == chosenRotation,
+	--	"Correct rotation and actual rotation aren't equal.\nChosen rotation: "..chosenRotation.."\nActual rotation: "..testRotation+1)
+
+	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][chosenRotation][(rotation==1 and "cw" or "ccw")]
+	for i=1, #chosenWallKickTests do
+		local tx = piece.x+chosenWallKickTests[i][1]
+		local ty = piece.y-chosenWallKickTests[i][2]
+		local pieceCanMove = canPieceMove(tx, ty, testRotation)
+		if pieceCanMove
+		and lockDelayRotationsRemaining == maxLockDelayRotations then
+			finishRotation(tx, ty, testRotation)
+			break
+		elseif (pieceCanMove or canPieceMove(tx, ty-1, testRotation))
+		and lockDelayRotationsRemaining > 0 then
+			lockDelayRotationsRemaining -= 1
+			lockDelay = 15
+			finishRotation(tx, ty, testRotation)
+			if not pieceCanMove then piece.y -= 1 end
+			break
+		end
+	end
+
+	updateGhost()
+	spinSound:play()
+end
+
+local function resetLockDelay()
+	lockDelayRotationsRemaining = maxLockDelayRotations
+	lockDelay = 15
+end
+
 local function move(direction)
-	ghostPieceY = piece.y
 	local testX = piece.x + direction
 
 	if canPieceMove(testX, piece.y, piece.rotation) then
 		piece.x = testX
+		resetLockDelay()
 		refreshNeeded = true
+		moveSound:play()
+		lastAction = "movement"
 	end
 
-	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
-		ghostPieceY += 1
-	end
+	updateGhost()
 end
 
 local function holdDirection(dir)
 	if holdDir == 0 or holdDir > 5 then move(dir) end
 	holdDir += 1
-
 end
 
-local inputHandlers	= {
+local function loopThroughBlocks(func)
+	for y=1, pieceYCount do
+		for x=1, pieceXCount do
+			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
+		end
+	end
+end
+
+local function addPieceToInertGrid()
+	loopThroughBlocks(function(block, x, y)
+		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
+	end)
+end
+
+local function lose()
+	timer = 0
+	resetLockDelay()
+	lost = true
+	UITimer = time.new(500, 8, -4, easings.outCubic)
+	playdate.inputHandlers.pop()
+end
+
+local function lock()
+	local tspin = false
+	if piece.type == TPIECE and lastAction == "rotation" then
+		local tpiece = pieceStructures[TPIECE][piece.rotation+1]
+		local squaresCount = 0
+		for i=1, 4 do
+			local tst = tspindata[i] -- t-spin test
+			local b
+			xpcall(function()
+				b=inert[piece.y+(2+tst[2])][piece.x+(2+tst[1])]
+				squaresCount = ((b == nil or b == '*') and squaresCount + 1 or squaresCount)
+			end, function()
+				-- assume it was because the piece got out of bounds and increase square count
+				squaresCount += 1
+			end)
+		end
+		--print(squaresCount)
+		if squaresCount >= 3 then
+			-- it's a tspin! but which one? right now it doesn't matter.
+			print("T-Spin!")
+			tspin = true
+		end
+	end
+
+	addPieceToInertGrid()
+
+	-- Find complete rows
+	local completedLine = false
+	local clearedLines = 0
+	for y = 1, gridYCount do
+
+		local complete = true
+		for x = 1, gridXCount do
+			if inert[y][x] == ' ' then
+				complete = false
+				break
+			end
+		end
+
+		if complete then
+			completedLine = true
+
+			completedLines += 1
+			if completedLines ~= 0 and completedLines%10 == 0 and not levelIncreased then
+				levelIncreased = true
+				level += 1
+			elseif completedLines%10 ~= 0 then levelIncreased = false end
+
+			table.insert(clearLines, ClearLine(y-1))
+			for removeY = y, 2, -1 do
+				for removeX = 1, gridXCount do
+					inert[removeY][removeX] =
+					inert[removeY - 1][removeX]
+				end
+			end
+
+			for removeX = 1, gridXCount do inert[1][removeX] = " " end
+
+			scoreGoal += 10 * combo
+
+			--synth:setWaveform(sound.kWaveSquare)
+			--synth:setADSR(0, 0, 0.5, 0.05)
+			--synth:playNote("C5", 0.5, 0.001)
+			stopAllComboSounds()
+			comboSounds[math.min(combo, 4)]:play()
+			combo += 1
+
+			clearedLines += 1
+		end
+	end
+
+	local allclear = true
+	for y = 1, gridYCount do
+		for x = 1, gridXCount do
+			if inert[y][x] ~= " " then
+				-- Exit both loops if found a block
+				allclear = false
+				break
+			end
+		end
+		-- I said both
+		if not allclear then break end
+	end
+
+	for i=0, 4 do
+		local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
+		if clearedLines == i then
+			scoreGoal += (10+(tspin and 20 or 0))*i * combo
+			if tspin or clearedLines >= 4 then
+				if clearedLines == 0 then
+					spawnSash("T-Spin!")
+				else
+					stopAllComboSounds()
+					specialSound:play()
+					spawnSash((tspin and "T-Spin " or "")..lineClearNames[clearedLines])
+				end
+			end
+		end
+	end
+
+	--[[
+	if clearedLines == 0 then
+		-- Same points as a single.
+		stopAllComboSounds()
+		scoreGoal += 10 * combo
+		spawnSash("T-Spin Single!")
+	elseif clearedLines == 1 then
+		stopAllComboSounds()
+		scoreGoal += 20 * combo
+		spawnSash("T-Spin")
+	elseif clearedLines >= 4 then
+		stopAllComboSounds()
+		specialSound:play()
+		spawnSash((tspin and "T-Spin " or "").."Playtris!")
+		scoreGoal += (15 + (tspin and 10 or 0)) * combo
+	end
+	]]
+
+	if allclear then
+		scoreGoal += 25 * combo
+		spawnSash("All Clear!")
+	end
+
+	if not completedLine then
+		dropSound:play()
+		combo = 1
+	end
+
+	newPiece(table.remove(sequence))
+	hasHeldPiece = false
+
+	if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
+end -- lock function
+
+local inputHandlers = {
 	upButtonDown = function()
 		if not lost and not menuOpen then
 			local dist = 0
@@ -331,17 +532,27 @@ local inputHandlers	= {
 				piece.y += 1
 				dist += 1
 			end
+			if dist ~= 0 then lastAction = "movement" end
 			dropSound:play()
-			timer = timerLimit
+			--timer = timerLimit
+			lockDelay = 0
+			lock()
+			forceInertGridRefresh = true
 			if shake then displayYPos = dist*1.25 end
 		end
 	end,
 	-- Skip the O piece when rotating.
 	AButtonDown = function()
-		if not lost then if piece.type ~= 2 then rotate(inverseRotation and -1 or 1) end end
+		if not lost then
+			if piece.type ~= OPIECE then rotate(inverseRotation and -1 or 1)
+			else spinSound:play() end -- give the illusion that the o piece is rotating
+		end
 	end,
 	BButtonDown = function()
-		if not lost then if piece.type ~= 2 then rotate(inverseRotation and 1 or -1) end end
+		if not lost then
+			if piece.type ~= OPIECE then rotate(inverseRotation and 1 or -1)
+			else spinSound:play() end -- read above
+		end
 	end
 }
 
@@ -380,6 +591,7 @@ local function reset()
 	timer = 0
 	score = 0
 	scoreGoal = score
+	resetLockDelay()
 end
 
 local function drawBlock(block, x, y, size)
@@ -399,35 +611,7 @@ local function drawTexturedBlock(image, x, y, size)
 	image:draw((x-1)*size, (y-1)*size)
 end
 
-local function loopThroughBlocks(func)
-	for y=1, pieceYCount do
-		for x=1, pieceXCount do
-			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
-		end
-	end
-end
-
-local function addPieceToInertGrid()
-	loopThroughBlocks(function(block, x, y)
-		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
-	end)
-end
-
-function addSash(message)
-	if sash then
-		table.insert(sashes, Sash(message))
-		screenClearNeeded = true
-	end
-end
-
 reset()
-
-local function lose()
-	timer = 0
-	lost = true
-	UITimer = time.new(500, 8, -4, easings.outCubic)
-	playdate.inputHandlers.pop()
-end
 
 local function updateGame()
 	if not lost then
@@ -447,6 +631,7 @@ local function updateGame()
 		timerLimit = 30
 		if btn("down") and not pieceHasChanged then
 			timerLimit = 0
+			lastAction = "movement"
 		elseif not btn("down") then
 			pieceHasChanged = false
 		end
@@ -471,97 +656,32 @@ local function updateGame()
 		end
 
 		timer += level
+		lockDelay -= 1
 		if timer >= timerLimit then
-			timer = 0
 			refreshNeeded = true
 			
 			local testY = piece.y + 1
 
-			if canPieceMove(piece.x, testY, piece.rotation) then
+			local pieceCanMove = canPieceMove(piece.x, testY, piece.rotation)
+			if pieceCanMove
+			and lockDelayRotationsRemaining == maxLockDelayRotations then
 				piece.y = testY
+				resetLockDelay()
+				lastAction = "movement"
 			else
-				addPieceToInertGrid()
-
-				-- Find complete rows
-				local completedLine = false
-				local clearedLines = 0
-				for y = 1, gridYCount do
-
-					local complete = true
-					for x = 1, gridXCount do
-						if inert[y][x] == ' ' then
-							complete = false
-							break
-						end
+				if lockDelay > 0 then
+					if pieceCanMove then
+						piece.y = testY
 					end
-
-					if complete then
-						completedLine = true
-
-						completedLines += 1
-						if completedLines ~= 0 and completedLines%10 == 0 and not levelIncreased then
-							levelIncreased = true
-							level += 1
-						elseif completedLines%10 ~= 0 then levelIncreased = false end
-
-						table.insert(clearLines, ClearLine(y-1))
-						for removeY = y, 2, -1 do
-							for removeX = 1, gridXCount do
-								inert[removeY][removeX] =
-								inert[removeY - 1][removeX]
-							end
-						end
-
-						for removeX = 1, gridXCount do inert[1][removeX] = " " end
-
-						scoreGoal += 10 * combo
-
-						--synth:setWaveform(sound.kWaveSquare)
-						--synth:setADSR(0, 0, 0.5, 0.05)
-						--synth:playNote("C5", 0.5, 0.001)
-						stopAllComboSounds()
-						comboSounds[math.min(combo, 4)]:play()
-						combo += 1
-
-						clearedLines += 1
-					end
+					return
 				end
-
-				local allclear = true
-				for y = 1, gridYCount do
-					for x = 1, gridXCount do
-						if inert[y][x] ~= " " then
-							-- Exit both loops if found a block
-							allclear = false
-							break
-						end
-					end
-					-- I said both
-					if not allclear then break end
-				end
-
-				if clearedLines >= 4 then
-					stopAllComboSounds()
-					tetrisSound:play()
-					addSash("Playtris!")
-					scoreGoal += 15 * combo
-				end
-
-				if allclear and sash then
-					scoreGoal += 25 * combo
-					addSash("All clear!")
-				end
-
-				if not completedLine then
-					dropSound:play()
-					combo = 1
-				end
-
-				newPiece(table.remove(sequence))
-				hasHeldPiece = false
-
-				if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
+				
+				resetLockDelay()
+				
+				lock()
 			end -- complete a row
+			
+			timer = 0
 		end -- timer is over timerLimit
 	else
 		refreshNeeded = true
@@ -621,6 +741,9 @@ local function drawNextPiece() -- draw next piece
 	end)
 end
 
+local function color() gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite) end
+		local function opcolor()  gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack) end
+
 local function drawGame()
 	if refreshNeeded or screenClearNeeded then
 		refreshNeeded = false
@@ -647,14 +770,12 @@ local function drawGame()
 			refreshNeeded = true
 			displayYPos+=((0-displayYPos)*0.25)
 			
-			-- Just clean up the area below the grid if the whole screen wasn't cleared
-			if not screenWasCleared then
-				gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
-				gfx.fillRect(
-					offsetX*blockSize,    dheight-offsetY*blockSize,
-					gridXCount*blockSize, offsetY*blockSize
-				)
-			end
+			-- Just clean up the area below the grid instead of a full screen clear
+			color()
+			gfx.fillRect(
+				offsetX*blockSize,    dheight-offsetY*blockSize,
+				gridXCount*blockSize, offsetY*blockSize
+			)
 
 			gfx.setDrawOffset(0,displayYPos)
 
@@ -676,7 +797,7 @@ local function drawGame()
 
 		if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
-		gfx.setColor(darkMode and gfx.kColorBlack or gfx.kColorWhite)
+		color()
 		gfx.fillRect(
 			offsetX*blockSize,    offsetY*blockSize,
 			gridXCount*blockSize, gridYCount*blockSize
@@ -685,7 +806,7 @@ local function drawGame()
 		for i,l in ipairs(lines) do updateEffect(lines,i,l) end
 
 		if not grid then
-			gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+			opcolor()
 			gfx.drawRect(
 				offsetX*blockSize,    offsetY*blockSize,
 				gridXCount*blockSize, gridYCount*blockSize
@@ -711,7 +832,7 @@ local function drawGame()
 				gfx.pushContext(inertGridImage)
 			end
 			
-			gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+			opcolor()
 			for y = 1, gridYCount do
 				for x = 1, gridXCount do
 					drawBlock(inert[y][x], x, y, blockSize)
@@ -726,7 +847,7 @@ local function drawGame()
 			inertGridImage:draw(offsetX * blockSize, offsetY * blockSize)
 		end
 
-		gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+		opcolor()
 		loopThroughBlocks(function(_, x, y)
 			if not lost then
 				local block = pieceStructures[piece.type][piece.rotation+1][y][x]
@@ -744,6 +865,18 @@ local function drawGame()
 				end
 			end
 		end)
+
+		if piece.type == IPIECE and false then
+			gfx.setColor(gfx.kColorXOR)
+			local rect = geom.rect.new(
+				(piece.x+1.5+offsetX)*blockSize,
+				(piece.y+1.5+offsetY)*blockSize,
+				blockSize-1,
+				blockSize-1
+			)
+			gfx.fillEllipseInRect(rect)
+			opcolor()
+		end
 
 		gfx.setDrawOffset(0,0)
 
@@ -765,7 +898,7 @@ end
 function generateGridImage(image, gridBlockSize)
 	gfx.pushContext(image)
 	image:clear(gfx.kColorClear)
-	gfx.setColor(darkMode and gfx.kColorWhite or gfx.kColorBlack)
+	opcolor()
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
 			local rect = geom.rect.new(
@@ -785,6 +918,12 @@ generateGridImage(gridImage, defaultBlockSize)
 generateGridImage(gridImageBig, bigBlockSize)
 
 local _update, _draw = updateGame, drawGame
+
+---------------
+-- Game menu --
+---------------
+
+-- I basically just reinvented playdate.ui.gridview
 
 local patternTimer
 
@@ -906,7 +1045,8 @@ local menu = {
 		onchange = function(val)
 			soundsVolume = val
 			saveData("sounds", soundsVolume)
-			updateSoundVolume()
+			updateSoundVolume(sfx)
+			updateSoundVolume(comboSounds)
 		end,
 	},
 }
@@ -1077,8 +1217,8 @@ function updateMusicVolume()
 	end
 end
 
-function updateSoundVolume()
-	for i,v in ipairs(sfx) do
+function updateSoundVolume(soundTable)
+	for i,v in ipairs(soundTable) do
 		if v:getVolume() ~= soundsVolume then
 			v:setVolume(soundsVolume)
 		end
@@ -1086,7 +1226,8 @@ function updateSoundVolume()
 end
 
 updateMusicVolume()
-updateSoundVolume()
+updateSoundVolume(sfx)
+updateSoundVolume(comboSounds)
 bgmIntro:play()
 
 function playdate.update()
@@ -1144,5 +1285,11 @@ function playdate.keyPressed(key)
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
 		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
+	elseif key == "D" then
+		forceInertGridRefresh = true
+		for i=1, 3 do table.remove(inert) end
+		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
 	end
 end
