@@ -1,25 +1,3 @@
--- MIT License
-
--- Copyright (c) 2022 @thacuber2a03
-
--- Permission is hereby granted, free of charge, to any person obtaining a copy
--- of this software and associated documentation files (the "Software"), to deal
--- in the Software without restriction, including without limitation the rights
--- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
--- copies of the Software, and to permit persons to whom the Software is
--- furnished to do so, subject to the following conditions:
-
--- The above copyright notice and this permission notice shall be included in all
--- copies or substantial portions of the Software.
-
--- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
--- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
--- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
--- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
--- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
--- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE.
-
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
@@ -98,7 +76,7 @@ maxLockDelayRotations = 15
 
 if bigBlocks then
 	blockSize = bigBlockSize
-else 
+else
 	blockSize = defaultBlockSize
 end
 
@@ -659,7 +637,7 @@ local function updateGame()
 		lockDelay -= 1
 		if timer >= timerLimit then
 			refreshNeeded = true
-			
+
 			local testY = piece.y + 1
 
 			local pieceCanMove = canPieceMove(piece.x, testY, piece.rotation)
@@ -675,12 +653,12 @@ local function updateGame()
 					end
 					return
 				end
-				
+
 				resetLockDelay()
-				
+
 				lock()
 			end -- complete a row
-			
+
 			timer = 0
 		end -- timer is over timerLimit
 	else
@@ -769,7 +747,7 @@ local function drawGame()
 		if displayYPos ~= 0 then
 			refreshNeeded = true
 			displayYPos+=((0-displayYPos)*0.25)
-			
+
 			-- Just clean up the area below the grid instead of a full screen clear
 			color()
 			gfx.fillRect(
@@ -831,7 +809,7 @@ local function drawGame()
 				inertGridImage:clear(gfx.kColorClear)
 				gfx.pushContext(inertGridImage)
 			end
-			
+
 			opcolor()
 			for y = 1, gridYCount do
 				for x = 1, gridXCount do
@@ -889,9 +867,9 @@ local function drawGame()
 		gfx.fillRect(0, 0, 400, introRectT.value)
 
 		gfx.popContext()
-		
+
 	end
-	
+
 	time.updateTimers()
 end
 
@@ -1016,11 +994,11 @@ local menu = {
 			bigBlocks = val
 			if bigBlocks then
 				blockSize = 13
-			else 
+			else
 				blockSize = 11
 			end
 			computeGridOffset()
-			
+
 			saveData("bigBlocks", bigBlocks)
 		end,
 	},
@@ -1063,7 +1041,7 @@ function updateMenu()
 			menuCursor -= 1
 		end
 		menuCursor %= #menu
-		
+
 		local menuItem = menu[menuCursor+1]
 		if btnp("a") then
 			if menuItem.type == "button" then
@@ -1074,10 +1052,10 @@ function updateMenu()
 				menuItem.ontoggle(menuItem.state)
 				menuClickSound:play()
 			end
-			
+
 			commitSaveData()
 		end
-		
+
 		if btnp("b") then
 			menuClickSound:play()
 			closeMenu()
@@ -1239,10 +1217,10 @@ function playdate.update()
 end
 
 function playdate.gameWillPause()
-	
+
 	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
 	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
-	
+
 	gfx.lockFocus(img)
 	gfx.setFont(bold)
 	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
