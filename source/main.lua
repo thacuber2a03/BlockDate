@@ -64,13 +64,14 @@ maxLockDelayRotations = 15
 	grid, darkMode,
 	inverseRotation,
 	musicVolume, soundsVolume,
-	bigBlocks
+	bigBlocks, pieceDifferentiation
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
 	loadData("music") or 1, loadData("sounds") or 1,
-	loadData("bigBlocks") or false
+	loadData("bigBlocks") or false,
+	loadData("pieceDifferentiation") or true
 
 if bigBlocks then
 	blockSize = bigBlockSize
@@ -312,7 +313,7 @@ end
 
 local function addPieceToInertGrid()
 	loopThroughBlocks(function(block, x, y)
-		if block ~= PIECE_NONE then inert[piece.y + y][piece.x + x] = block end
+		if block ~= PIECE_NONE then inert[piece.y + y][piece.x + x] = piece.type end
 	end)
 end
 
@@ -536,8 +537,13 @@ local function drawBlock(block, x, y, size)
 		size-1
 	)
 
-	if block ~= 0 then
+	if block ~= PIECE_NONE then
+		if pieceDifferentiation then
+			gfx.setDitherPattern(block / 10 - 0.1)
+		end
 		gfx.fillRect(rect)
+
+		gfx.setDitherPattern(0.0)
 	end
 end
 
@@ -657,7 +663,7 @@ local function drawHeldPiece() -- draw held piece
 			local block = rotations[rotation].pieces[heldPiece][1][y][x]
 			if block ~= 0 then
 				local acp = heldPiece ~= 1 and heldPiece ~= 2
-				drawBlock('*', x+(UITimer.value-(acp and 3.5 or 3.9)), y+(acp and 4 or (heldPiece == 1 and 3.5 or 3)), uiBlockSize)
+				drawBlock(heldPiece, x+(UITimer.value-(acp and 3.5 or 3.9)), y+(acp and 4 or (heldPiece == 1 and 3.5 or 3)), uiBlockSize)
 			end
 		end)
 	end
@@ -670,7 +676,7 @@ local function drawNextPiece() -- draw next piece
 		local block = rotations[rotation].pieces[nextPiece][1][y][x]
 		if block ~= 0 then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
+			drawBlock(nextPiece, x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
 		end
 	end)
 end
@@ -786,7 +792,7 @@ local function drawGame()
 			if not lost then
 				local block = rotations[rotation].pieces[piece.type][piece.rotation+1][y][x]
 				if block ~= 0 then
-					drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
+					drawBlock(piece.type, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 					if ghost then
 						local _, millis = playdate.getSecondsSinceEpoch()
 						local selectedImagetable = (bigBlocks and ghostBlockImagetableBig or ghostBlockImagetable)
@@ -957,6 +963,15 @@ local menu = {
 
 			saveData("bigBlocks", bigBlocks)
 		end,
+	},
+	{
+		name = "Piece Differentiation",
+		type = "crossmark",
+		state = pieceDifferentiation,
+		ontoggle = function(val)
+			pieceDifferentiation = val
+			saveData("pieceDifferentiation", pieceDifferentiation)
+		end
 	},
 	{
 		name = "Music",
