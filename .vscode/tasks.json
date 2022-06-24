@@ -1,0 +1,63 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Playdate: Build",
+			"type": "pdc",
+			"problemMatcher": [
+				"$pdc-lua",
+				"$pdc-external"
+			],
+		},
+		{
+			"label": "Playdate: Run",
+			"type": "playdate-simulator",
+			"problemMatcher": [
+				"$pdc-external"
+			],
+		},
+		{
+			"label": "Playdate: Build and Run",
+			"dependsOn": [
+				"Playdate: Build",
+				"Playdate: Run"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+
+		{
+			"label": "Visit: Playdate SDK",
+			"type": "shell",
+			"windows": {
+				"command": "explorer https://sdk.play.date/"
+			},
+			"osx": {
+				"command": "open https://sdk.play.date/"
+			},
+			"problemMatcher": [],
+		},
+		{
+			"label": "Visit: GitHub Repository",
+			"type": "shell",
+			"windows": {
+				"command": "explorer https://github.com/ThaCuber/Playtris"
+			},
+			"osx": {
+				"command": "open https://github.com/ThaCuber/Playtris"
+			},
+			"problemMatcher": [],
+		},
+		{
+			"label": "Visit: Itch.io",
+			"type": "shell",
+			"windows": {
+				"command": "explorer https://thacuber.itch.io/playtris"
+			},
+			"osx": {
+				"command": "open https://thacuber.itch.io/playtris"
+			},
+			"problemMatcher": [],
+		},
+	]
+}

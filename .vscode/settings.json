@@ -1,0 +1,25 @@
+{
+	"Lua.diagnostics.disable": [],
+	"Lua.diagnostics.globals": [
+		"import",
+		"playdate"
+	],
+	"Lua.runtime.nonstandardSymbol": [
+		"+=",
+		"-=",
+		"*=",
+		"/=",
+		"//",
+		"//=",
+		"%=",
+		"<<=",
+		">>=",
+		"&=",
+		"|=",
+		"^="
+	],
+	"Lua.runtime.version": "Lua 5.4",
+	"Lua.workspace.library": [
+		"$PLAYDATE_SDK_PATH/CoreLibs"
+	]
+}
