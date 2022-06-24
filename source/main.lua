@@ -539,6 +539,7 @@ local function drawBlock(block, x, y, size)
 
 	if block ~= PIECE_NONE then
 		if pieceDifferentiation then
+			gfx.drawRect(rect)
 			gfx.setDitherPattern(block / 10 - 0.1)
 		end
 		gfx.fillRect(rect)
