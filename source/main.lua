@@ -2,10 +2,8 @@ import "CoreLibs/graphics"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
 
-import "pieces"
+import "rotations"
 import "tspindata"
-import "wallkickdata"
-import "constants"
 
 import "effects/endline"
 import "effects/clearline"
@@ -145,7 +143,7 @@ end
 local dropSound = loadSound("drop")
 local specialSound = loadSound("special")
 local holdSound = loadSound("hold")
-local spinSound = loadSound("spin")
+spinSound = loadSound("spin")
 local moveSound = loadSound("movetrimmed")
 
 local menuScrollSound = loadSound("menu/menu-scroll")
@@ -188,6 +186,8 @@ local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize 
 -- Game related functions and variables --
 ------------------------------------------
 
+local rotation = ROTATION_SRS
+
 local displayYPos = 0
 
 local completedLines = 0
@@ -209,8 +209,8 @@ local inert = {}
 
 local timer = 0
 local timerLimit = 30
-local lockDelayRotationsRemaining = maxLockDelayRotations
-local lockDelay = 15
+lockDelayRotationsRemaining = maxLockDelayRotations
+lockDelay = 15
 local score = 0
 local scoreGoal = score
 
@@ -224,13 +224,13 @@ local function spawnSash(message)
 	if sash then table.insert(sashes, Sash(message)) end
 end
 
-local function canPieceMove(testX, testY, testRotation)
+function canPieceMove(testX, testY, testRotation)
 	for y=1, pieceYCount do
 		for x=1, pieceXCount do
 			local testBlockX = testX + x
 			local testBlockY = testY + y
 			if not inert[testY+1] then return false end
-			if pieceStructures[piece.type][testRotation+1][y][x] ~= 0 and (
+			if rotations[rotation].pieces[piece.type][testRotation+1][y][x] ~= 0 and (
 				testBlockX < 1 or testBlockX > gridXCount
 				or testBlockY < 1 or testBlockY > gridYCount
 				or inert[testBlockY][testBlockX] ~= PIECE_NONE
@@ -244,7 +244,7 @@ end
 
 local function newSequence()
 	sequence = {}
-	for i = 1, #pieceStructures do
+	for i = 1, #rotations[rotation].pieces do
 		table.insert(sequence, random(#sequence + 1), i)
 	end
 end
@@ -263,7 +263,7 @@ local function newPiece(type)
 	screenClearNeeded = true
 end
 
-local function finishRotation(tx, ty, testRotation)
+function finishRotation(tx, ty, testRotation)
 	piece.x = tx
 	piece.y = ty
 	piece.rotation = testRotation
@@ -276,50 +276,6 @@ function updateGhost()
 	while canPieceMove(piece.x, ghostPieceY + 1, piece.rotation) do
 		ghostPieceY += 1
 	end
-end
-
-local function rotate(rotation)
-	local testRotation = piece.rotation + rotation
-	testRotation %= #pieceStructures[piece.type]
-
-	-- temporary solve until I can figure out how to compact it
-	local chosenRotation = 1
-	if rotation == 1 then
-		if piece.rotation == 0 then end -- no changes
-		if piece.rotation == 1 then chosenRotation = 2 end
-		if piece.rotation == 2 then chosenRotation = 3 end
-		if piece.rotation == 3 then chosenRotation = 4 end
-	else
-		if piece.rotation == 0 then chosenRotation = 4 end
-		if piece.rotation == 1 then chosenRotation = 1 end
-		if piece.rotation == 2 then chosenRotation = 2 end
-		if piece.rotation == 3 then chosenRotation = 3 end
-	end
-
-	--assert(testRotation+1 == chosenRotation,
-	--	"Correct rotation and actual rotation aren't equal.\nChosen rotation: "..chosenRotation.."\nActual rotation: "..testRotation+1)
-
-	local chosenWallKickTests = wallkickdata[(piece.type~=1 and 1 or 2)][chosenRotation][(rotation==1 and "cw" or "ccw")]
-	for i=1, #chosenWallKickTests do
-		local tx = piece.x+chosenWallKickTests[i][1]
-		local ty = piece.y-chosenWallKickTests[i][2]
-		local pieceCanMove = canPieceMove(tx, ty, testRotation)
-		if pieceCanMove
-		and lockDelayRotationsRemaining == maxLockDelayRotations then
-			finishRotation(tx, ty, testRotation)
-			break
-		elseif (pieceCanMove or canPieceMove(tx, ty-1, testRotation))
-		and lockDelayRotationsRemaining > 0 then
-			lockDelayRotationsRemaining -= 1
-			lockDelay = 15
-			finishRotation(tx, ty, testRotation)
-			if not pieceCanMove then piece.y -= 1 end
-			break
-		end
-	end
-
-	updateGhost()
-	spinSound:play()
 end
 
 local function resetLockDelay()
@@ -349,7 +305,7 @@ end
 local function loopThroughBlocks(func)
 	for y=1, pieceYCount do
 		for x=1, pieceXCount do
-			func(pieceStructures[piece.type][piece.rotation+1][y][x], x, y)
+			func(rotations[rotation].pieces[piece.type][piece.rotation+1][y][x], x, y)
 		end
 	end
 end
@@ -371,7 +327,7 @@ end
 local function lock()
 	local tspin = false
 	if piece.type == PIECE_T and lastAction == "rotation" then
-		local tpiece = pieceStructures[PIECE_T][piece.rotation+1]
+		local tpiece = rotations[rotation].pieces[PIECE_T][piece.rotation+1]
 		local squaresCount = 0
 		for i=1, 4 do
 			local tst = tspindata[i] -- t-spin test
@@ -522,13 +478,13 @@ local inputHandlers = {
 	-- Skip the O piece when rotating.
 	AButtonDown = function()
 		if not lost then
-			if piece.type ~= PIECE_O then rotate(inverseRotation and -1 or 1)
+			if piece.type ~= PIECE_O then rotations[rotation].rotate(inverseRotation and -1 or 1)
 			else spinSound:play() end -- give the illusion that the o piece is rotating
 		end
 	end,
 	BButtonDown = function()
 		if not lost then
-			if piece.type ~= PIECE_O then rotate(inverseRotation and 1 or -1)
+			if piece.type ~= PIECE_O then rotations[rotation].rotate(inverseRotation and 1 or -1)
 			else spinSound:play() end -- read above
 		end
 	end
@@ -594,7 +550,7 @@ reset()
 local function updateGame()
 	if not lost then
 		local crankTicks = playdate.getCrankTicks(4)
-		if crankTicks ~= 0 then rotate(crankTicks) end
+		if crankTicks ~= 0 then rotations[rotation].rotate(crankTicks) end
 
 		if scoreGoal ~= score then
 			score += (scoreGoal - score) * .25
@@ -698,7 +654,7 @@ local function drawHeldPiece() -- draw held piece
 	holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
-			local block = pieceStructures[heldPiece][1][y][x]
+			local block = rotations[rotation].pieces[heldPiece][1][y][x]
 			if block ~= 0 then
 				local acp = heldPiece ~= 1 and heldPiece ~= 2
 				drawBlock('*', x+(UITimer.value-(acp and 3.5 or 3.9)), y+(acp and 4 or (heldPiece == 1 and 3.5 or 3)), uiBlockSize)
@@ -711,7 +667,7 @@ local function drawNextPiece() -- draw next piece
 	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
-		local block = pieceStructures[nextPiece][1][y][x]
+		local block = rotations[rotation].pieces[nextPiece][1][y][x]
 		if block ~= 0 then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
 			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
@@ -828,7 +784,7 @@ local function drawGame()
 		opcolor()
 		loopThroughBlocks(function(_, x, y)
 			if not lost then
-				local block = pieceStructures[piece.type][piece.rotation+1][y][x]
+				local block = rotations[rotation].pieces[piece.type][piece.rotation+1][y][x]
 				if block ~= 0 then
 					drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 					if ghost then
