@@ -230,10 +230,10 @@ local function canPieceMove(testX, testY, testRotation)
 			local testBlockX = testX + x
 			local testBlockY = testY + y
 			if not inert[testY+1] then return false end
-			if pieceStructures[piece.type][testRotation+1][y][x] ~= ' ' and (
+			if pieceStructures[piece.type][testRotation+1][y][x] ~= 0 and (
 				testBlockX < 1 or testBlockX > gridXCount
 				or testBlockY < 1 or testBlockY > gridYCount
-				or inert[testBlockY][testBlockX] ~= " "
+				or inert[testBlockY][testBlockX] ~= PIECE_NONE
 			) then
 				return false
 			end
@@ -356,7 +356,7 @@ end
 
 local function addPieceToInertGrid()
 	loopThroughBlocks(function(block, x, y)
-		if block ~= ' ' then inert[piece.y + y][piece.x + x] = block end
+		if block ~= PIECE_NONE then inert[piece.y + y][piece.x + x] = block end
 	end)
 end
 
@@ -370,15 +370,15 @@ end
 
 local function lock()
 	local tspin = false
-	if piece.type == TPIECE and lastAction == "rotation" then
-		local tpiece = pieceStructures[TPIECE][piece.rotation+1]
+	if piece.type == PIECE_T and lastAction == "rotation" then
+		local tpiece = pieceStructures[PIECE_T][piece.rotation+1]
 		local squaresCount = 0
 		for i=1, 4 do
 			local tst = tspindata[i] -- t-spin test
 			local b
 			xpcall(function()
 				b=inert[piece.y+(2+tst[2])][piece.x+(2+tst[1])]
-				squaresCount = ((b == nil or b == '*') and squaresCount + 1 or squaresCount)
+				squaresCount = ((b == nil or b == 0) and squaresCount + 1 or squaresCount)
 			end, function()
 				-- assume it was because the piece got out of bounds and increase square count
 				squaresCount += 1
@@ -401,7 +401,7 @@ local function lock()
 
 		local complete = true
 		for x = 1, gridXCount do
-			if inert[y][x] == ' ' then
+			if inert[y][x] == PIECE_NONE then
 				complete = false
 				break
 			end
@@ -424,7 +424,7 @@ local function lock()
 				end
 			end
 
-			for removeX = 1, gridXCount do inert[1][removeX] = " " end
+			for removeX = 1, gridXCount do inert[1][removeX] = PIECE_NONE end
 
 			scoreGoal += 10 * combo
 
@@ -442,7 +442,7 @@ local function lock()
 	local allclear = true
 	for y = 1, gridYCount do
 		for x = 1, gridXCount do
-			if inert[y][x] ~= " " then
+			if inert[y][x] ~= PIECE_NONE then
 				-- Exit both loops if found a block
 				allclear = false
 				break
@@ -522,13 +522,13 @@ local inputHandlers = {
 	-- Skip the O piece when rotating.
 	AButtonDown = function()
 		if not lost then
-			if piece.type ~= OPIECE then rotate(inverseRotation and -1 or 1)
+			if piece.type ~= PIECE_O then rotate(inverseRotation and -1 or 1)
 			else spinSound:play() end -- give the illusion that the o piece is rotating
 		end
 	end,
 	BButtonDown = function()
 		if not lost then
-			if piece.type ~= OPIECE then rotate(inverseRotation and 1 or -1)
+			if piece.type ~= PIECE_O then rotate(inverseRotation and 1 or -1)
 			else spinSound:play() end -- read above
 		end
 	end
@@ -557,7 +557,7 @@ local function reset()
 	for y = 1, gridYCount do
 		inert[y] = {}
 		for x = 1, gridXCount do
-			inert[y][x] = ' '
+			inert[y][x] = PIECE_NONE
 		end
 	end
 
@@ -580,7 +580,7 @@ local function drawBlock(block, x, y, size)
 		size-1
 	)
 
-	if block ~= " " then
+	if block ~= 0 then
 		gfx.fillRect(rect)
 	end
 end
@@ -665,7 +665,7 @@ local function updateGame()
 		refreshNeeded = true
 		if not e then
 			inert[lostY] = {}
-			for i=1, gridXCount do inert[lostY][i] = ' ' end
+			for i=1, gridXCount do inert[lostY][i] = PIECE_NONE end
 			table.insert(lines, EndLine((lostY-1)+offsetY))
 
 			if lostY < gridYCount then lostY += 1
@@ -699,7 +699,7 @@ local function drawHeldPiece() -- draw held piece
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
-			if block ~= ' ' then
+			if block ~= 0 then
 				local acp = heldPiece ~= 1 and heldPiece ~= 2
 				drawBlock('*', x+(UITimer.value-(acp and 3.5 or 3.9)), y+(acp and 4 or (heldPiece == 1 and 3.5 or 3)), uiBlockSize)
 			end
@@ -712,7 +712,7 @@ local function drawNextPiece() -- draw next piece
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
-		if block ~= ' ' then
+		if block ~= 0 then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
 			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
 		end
@@ -829,7 +829,7 @@ local function drawGame()
 		loopThroughBlocks(function(_, x, y)
 			if not lost then
 				local block = pieceStructures[piece.type][piece.rotation+1][y][x]
-				if block ~= ' ' then
+				if block ~= 0 then
 					drawBlock(block, x + piece.x + offsetX, y + piece.y + offsetY,blockSize)
 					if ghost then
 						local _, millis = playdate.getSecondsSinceEpoch()
@@ -844,7 +844,7 @@ local function drawGame()
 			end
 		end)
 
-		if piece.type == IPIECE and false then
+		if piece.type == PIECE_I and false then
 			gfx.setColor(gfx.kColorXOR)
 			local rect = geom.rect.new(
 				(piece.x+1.5+offsetX)*blockSize,
@@ -1258,16 +1258,16 @@ function playdate.keyPressed(key)
 		forceInertGridRefresh = true
 		-- Generate a TSpin scenario
 		for i=1, 5 do table.remove(inert) end
-		table.insert(inert, {"*", "*", "*", " ", " ", " ", " ", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
+		table.insert(inert, {1, 1, 1, 0, 0, 0, 0, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 1, 0, 0, 1, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 1, 0, 0, 1, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 1, 0, 0, 1, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 0, 0, 0, 1, 1, 1, 1})
 	elseif key == "D" then
 		forceInertGridRefresh = true
 		for i=1, 3 do table.remove(inert) end
-		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
-		table.insert(inert, {"*", "*", "*", "*", " ", "*", "*", "*", "*", "*"})
+		table.insert(inert, {1, 1, 1, 1, 0, 0, 1, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 0, 0, 0, 1, 1, 1, 1})
+		table.insert(inert, {1, 1, 1, 1, 0, 1, 1, 1, 1, 1})
 	end
 end
