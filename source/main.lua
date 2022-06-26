@@ -55,8 +55,7 @@ gridXCount, gridYCount = 10, 18
 pieceXCount, pieceYCount = 4, 4
 
 uiBlockSize = 11
-defaultBlockSize = 11
-bigBlockSize = 13
+blockSize = 11
 maxLockDelayRotations = 15
 
 -- this looks so weird
@@ -64,20 +63,13 @@ maxLockDelayRotations = 15
 	grid, darkMode,
 	inverseRotation,
 	musicVolume, soundsVolume,
-	bigBlocks, pieceDifferentiation
+	pieceDifferentiation
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
 	loadData("music") or 1, loadData("sounds") or 1,
-	loadData("bigBlocks") or false,
 	loadData("pieceDifferentiation") or true
-
-if bigBlocks then
-	blockSize = bigBlockSize
-else
-	blockSize = defaultBlockSize
-end
 
 computeGridOffset()
 
@@ -178,10 +170,10 @@ local crossmarkImage = loadImage("crossmark")
 local ghostBlockImagetable = loadImagetable("ghost-block/normal/ghost-block")
 local ghostBlockImagetableBig = loadImagetable("ghost-block/big/ghost-block")
 
-local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
-local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
-local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
-local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+local gridImage = gfx.image.new(blockSize * gridXCount, blockSize * gridYCount)
+local gridImageBig = gfx.image.new(blockSize * gridXCount, blockSize * gridYCount)
+local inertGridImage = gfx.image.new(blockSize * gridXCount, blockSize * gridYCount)
+local inertGridImageBig = gfx.image.new(blockSize * gridXCount, blockSize * gridYCount)
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -855,8 +847,8 @@ function generateGridImage(image, gridBlockSize)
 	gfx.popContext()
 end
 
-generateGridImage(gridImage, defaultBlockSize)
-generateGridImage(gridImageBig, bigBlockSize)
+generateGridImage(gridImage, blockSize)
+generateGridImage(gridImageBig, blockSize)
 
 local _update, _draw = updateGame, drawGame
 
@@ -948,22 +940,6 @@ local menu = {
 			inverseRotation = val
 			saveData("inverseRotation", inverseRotation)
 		end
-	},
-	{
-		name = "Big blocks",
-		type = "crossmark",
-		state = bigBlocks,
-		ontoggle = function(val)
-			bigBlocks = val
-			if bigBlocks then
-				blockSize = 13
-			else
-				blockSize = 11
-			end
-			computeGridOffset()
-
-			saveData("bigBlocks", bigBlocks)
-		end,
 	},
 	{
 		name = "Piece Differentiation",
