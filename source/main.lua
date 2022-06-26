@@ -50,7 +50,12 @@ end
 -- Global variables --
 ----------------------
 
-gridXCount, gridYCount = 10, 18
+-- TODO: 10x20 boards are not true size!
+-- Will need to eventually make it 10x40
+-- and only show the 10x20 portion. This
+-- will allow overstacking which is allowed
+-- in modern games.
+gridXCount, gridYCount = 10, 20
 
 pieceXCount, pieceYCount = 4, 4
 
