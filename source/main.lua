@@ -947,7 +947,7 @@ local menu = {
 		end
 	},
 	{
-		name = "Piece Differentiation",
+		name = "Piece Diff.",
 		type = "crossmark",
 		state = pieceDifferentiation,
 		ontoggle = function(val)
