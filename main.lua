@@ -767,8 +767,7 @@ local function drawGame()
 		end
 
 		-- Only clear the screen when we absolutely need to
-		--if screenClearNeeded then
-		if true then
+		if screenClearNeeded then
 			gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
 			screenClearNeeded = false
 			screenWasCleared = true
@@ -776,7 +775,20 @@ local function drawGame()
 		
 		-- draw beautiful background scene from rainblocks
 		scene:draw()
-
+		
+		-- draw on-screen effects
+		local function updateEffect(t,i,e)
+			if e.dead then
+				pcall(function() table.remove(t, i) end)
+			else
+				e:update()
+				e:draw()
+				screenClearNeeded = true
+			end
+		end
+		
+		if #sashes > 0 then	updateEffect(sashes, #sashes, sashes[#sashes]) end
+		
 		-- Update screen shake
 		if displayYPos ~= 0 then
 			refreshNeeded = true
@@ -796,18 +808,6 @@ local function drawGame()
 				displayYPos = 0
 			end
 		end
-
-		local function updateEffect(t,i,e)
-			if e.dead then
-				pcall(function() table.remove(t, i) end)
-			else
-				e:update()
-				e:draw()
-				screenClearNeeded = true
-			end
-		end
-
-		if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
 		color()
 		gfx.fillRect(
@@ -892,12 +892,13 @@ local function drawGame()
 
 		gfx.setDrawOffset(0,0)
 
-		if pieceHasChanged or screenWasCleared then
+		--DREW: COMMENTING OUT IF-STATEMENT SO THAT HELD AND NEXT PIECES ARE DRAWN EVERY DRAW CYCLE
+		--if pieceHasChanged or screenWasCleared then
 			drawHeldPiece()
 			drawNextPiece()
 			drawScores()
 			drawLevelInfo()
-		end
+		--end
 		gfx.fillRect(0, 0, 400, introRectT.value)
 
 		gfx.popContext()

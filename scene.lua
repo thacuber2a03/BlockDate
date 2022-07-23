@@ -1,4 +1,4 @@
-Gfx = playdate.graphics
+local Gfx <const> = playdate.graphics
 
 local scene = {
 	create = function()
