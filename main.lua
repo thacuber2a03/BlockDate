@@ -33,6 +33,9 @@ import "effects/endline"
 import "effects/clearline"
 import "effects/sash"
 
+-- adding for creating rainblock aesthetic
+Scene = import "scene"
+
 local gfx     <const> = playdate.graphics
 local snd     <const> = playdate.sound
 local geom    <const> = playdate.geometry
@@ -239,6 +242,11 @@ local scoreGoal = score
 local refreshNeeded = true
 local screenClearNeeded = false
 local forceInertGridRefresh = false
+
+-- scene for  "rainblocks" aesthetic
+local scene = {}
+scene = Scene.create()
+scene:setup()
 
 local lastAction = "none"
 
@@ -759,11 +767,15 @@ local function drawGame()
 		end
 
 		-- Only clear the screen when we absolutely need to
-		if screenClearNeeded then
+		--if screenClearNeeded then
+		if true then
 			gfx.clear(darkMode and gfx.kColorBlack or gfx.kColorWhite)
 			screenClearNeeded = false
 			screenWasCleared = true
 		end
+		
+		-- draw beautiful background scene from rainblocks
+		scene:draw()
 
 		-- Update screen shake
 		if displayYPos ~= 0 then
