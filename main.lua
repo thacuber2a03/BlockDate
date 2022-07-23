@@ -154,6 +154,15 @@ local function loadImagetable(name)
 	return assert(gfx.imagetable.new(IMAGESDIR..name))
 end
 
+
+----------
+-- Font --
+----------
+
+blockdate_font = gfx.font.new("assets/fonts/playtris")
+gfx.setFont(blockdate_font)
+local text_width, text_height = gfx.getTextSize("0")
+
 ------------
 -- Sounds --
 ------------
@@ -394,7 +403,7 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
-	UITimer = time.new(500, 8, -4, easings.outCubic)
+	UITimer = time.new(500, 12, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
 end
 
@@ -580,7 +589,7 @@ local function reset()
 		screenClearNeeded = true
 	end
 
-	UITimer = time.new(500, -4, 8, easings.outCubic)
+	UITimer = time.new(500, -4, 12, easings.outCubic)
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
 	inert = {}
@@ -711,21 +720,31 @@ local function updateGame()
 end
 
 local function drawScores()
-	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+	--[[]
+	--gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
+	--blockdate_font:drawTextAligned("*SCORE*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
+	gfx.drawText("SCORE", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize)
+	---gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+	--gfx.drawTextAligned(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+	gfx.drawText(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize)
 	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
 	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
+	]]
+	gfx.drawText("SCORE", 265,190)
+	gfx.drawText(math.floor(score), 265, 203)
 end
 
 local function drawLevelInfo()
-	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
+	gfx.drawText("LEVEL", 60,190)
+	if level < 10 then
+		gfx.drawText(level, 120, 203)
+	else
+		gfx.drawText(level, 120 - text_width, 203)
+	end
 end
 
 local function drawHeldPiece() -- draw held piece
-	holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	gfx.drawText("HOLD", (UITimer.value-5)*uiBlockSize, 2*uiBlockSize-1)
 	if heldPiece then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
@@ -738,7 +757,7 @@ local function drawHeldPiece() -- draw held piece
 end
 
 local function drawNextPiece() -- draw next piece
-	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
