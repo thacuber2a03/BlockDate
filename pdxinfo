@@ -1,6 +1,6 @@
-name=Playtris
+name=rainblockdate
 author=@thacuber2a03
-description=It's some random tetromino game for the Playdate console (raindrop edition)
+description=It's some random tetromino game for the Playdate console (rainblock edition)
 version=1.7.0
 buildNumber=7
 imagePath=launcher
