@@ -9,7 +9,7 @@ local ease  <const> = playdate.easingFunctions
 local Timer <const> = playdate.timer.new
 
 local dwidth <const>, dheight <const> = playdate.display.getWidth(), playdate.display.getHeight()
-
+local text_x_alignment <const> = 10
 class("Sash").extends()
 
 local function setTimerEndCallback(timer, args, callback)
@@ -23,18 +23,18 @@ end
 
 function Sash:init(text)
 	self.text = text
+	local textWidth, text_height = gfx.getTextSize(self.text)
 
 	-- haha bad code go brr
-	self.yTimer = Timer(125, 0, 40, ease.outBack)
+	self.yTimer = Timer(125, 0, text_height*2, ease.outBack)
 	self.yTimer.discardOnCompletion = false
-	local textWidth = gfx.getSystemFont("bold"):getTextWidth(text)
 	setTimerEndCallback(self.yTimer, function()
-		self.textPosTimer = Timer(250, -textWidth, textWidth/2, ease.outCubic)
+		self.textPosTimer = Timer(250, -textWidth, text_x_alignment, ease.outCubic)
 		setTimerEndCallback(self.textPosTimer, function()
 			timer.performAfterDelay(500, function()
-				self.textPosTimer = Timer(250, 10+textWidth/2, dwidth, ease.inCubic)
+				self.textPosTimer = Timer(250, text_x_alignment, dwidth, ease.inCubic)
 				setTimerEndCallback(self.textPosTimer, function()
-					self.yTimer = Timer(250, 40, 0, ease.inBack)
+					self.yTimer = Timer(250, 40, text_height*2, ease.inBack)
 					setTimerEndCallback(self.yTimer, function() self.dead = true end)
 				end)
 			end)
@@ -46,12 +46,13 @@ function Sash:update() end
 
 function Sash:draw()
 	gfx.pushContext()
+	local text_width, text_height = gfx.getTextSize(self.text)
 	if self.yTimer then
-		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, gfx.getSystemFont("bold"):getHeight()*2)
+		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, text_height*2)
+		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, text_height*2)
 	end
 	if self.textPosTimer then
-		gfx.setImageDrawMode(darkMode and "fillBlack" or "fillWhite")
-		gfx.drawText("*"..self.text.."*", self.textPosTimer.value, (dheight-gfx.getSystemFont("bold"):getHeight()*1.5)-5)
+		gfx.drawText(self.text, self.textPosTimer.value, (dheight-text_height*1.5)-5)
 	end
 	gfx.popContext()
 end

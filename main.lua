@@ -218,6 +218,10 @@ local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gri
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 
+local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
+local bigLineClearAnimation = gfx.imagetable.new('images/clearbig.gif')
+
+
 ------------------------------------------
 -- Game related functions and variables --
 ------------------------------------------
@@ -492,16 +496,16 @@ local function lock()
 	end
 
 	for i=0, 4 do
-		local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
+		local lineClearNames = {"SINGLE", "DOUBLE", "TRIPLE", "PLAYTRIS"}
 		if clearedLines == i then
 			scoreGoal += (10+(tspin and 20 or 0))*i * combo
 			if tspin or clearedLines >= 4 then
 				if clearedLines == 0 then
-					spawnSash("T-Spin!")
+					spawnSash("T-SPIN!")
 				else
 					stopAllComboSounds()
 					specialSound:play()
-					spawnSash((tspin and "T-Spin " or "")..lineClearNames[clearedLines])
+					spawnSash((tspin and "T-SPIN " or "")..lineClearNames[clearedLines])
 				end
 			end
 		end
@@ -527,7 +531,7 @@ local function lock()
 
 	if allclear then
 		scoreGoal += 25 * combo
-		spawnSash("All Clear!")
+		spawnSash("ALL CLEAR!")
 	end
 
 	if not completedLine then
