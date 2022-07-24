@@ -195,10 +195,25 @@ local sfx = {
 
 local bgmIntro = loadMusic("bgmintro")
 local bgmLoop = loadMusic("bgmloop")
+local chill = loadMusic("glad_to_be_stuck_inside")
 
 local songs = {
-	bgmIntro, bgmLoop
+	intro = bgmIntro, 
+	playtris = bgmLoop, 
+	chill = chill
 }
+
+currentSong = songs.intro
+
+-- generate song list to use in menu
+local song_list = {}
+local n=0
+for k,v in pairs(songs) do
+  n=n+1
+  song_list[n]=k
+end
+--song_list.intro = nil	-- remove intro from song list
+
 
 ------------
 -- images --
@@ -1246,8 +1261,15 @@ sysmenu:addMenuItem("restart", function()
 	end
 end)
 
+sysmenu:addOptionsMenuItem("music", song_list, "playtris", function(selectedSong)
+	currentSong:stop()
+	currentSong = songs[selectedSong]
+	currentSong:play(0)
+end)
+
+
 function updateMusicVolume()
-	for i,v in ipairs(songs) do
+	for i,v in pairs(songs) do
 		if v:getVolume() ~= musicVolume then
 			v:setVolume(musicVolume)
 		end
@@ -1265,11 +1287,13 @@ end
 updateMusicVolume()
 updateSoundVolume(sfx)
 updateSoundVolume(comboSounds)
-bgmIntro:play()
+currentSong:play()
 
 function playdate.update()
-	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
-		bgmLoop:play(0)
+	--Once intro is over move to main bgm loop
+	if not bgmIntro:isPlaying() and not currentSong:isPlaying() then
+		currentSong = songs["playtris"]
+		currentSong:play(0)
 	end
 	_update()
 	_draw()
@@ -1294,7 +1318,6 @@ function playdate.gameWillPause()
 	gfx.drawText(math.floor(score), number_x, 150)
 	gfx.drawText("HI SCORE", text_x+32, 195)
 	gfx.drawText(highscore, number_x, 210)
-
 
 	gfx.unlockFocus()
 
