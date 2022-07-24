@@ -12,6 +12,9 @@ local dwidth <const>, dheight <const> = playdate.display.getWidth(), playdate.di
 local text_x_alignment <const> = 10
 class("Sash").extends()
 
+local starsAnimation = gfx.imagetable.new('assets/images/stars')
+local total_frames = starsAnimation:getLength()
+
 local function setTimerEndCallback(timer, args, callback)
 	if type(args) == "function" then
 		callback = args
@@ -23,6 +26,7 @@ end
 
 function Sash:init(text)
 	self.text = text
+	self.animation_frame = 1
 	local textWidth, text_height = gfx.getTextSize(self.text)
 
 	-- haha bad code go brr
@@ -48,8 +52,9 @@ function Sash:draw()
 	gfx.pushContext()
 	local text_width, text_height = gfx.getTextSize(self.text)
 	if self.yTimer then
-		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, text_height*2)
-		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, text_height*2)
+		self.animation_frame = self.animation_frame + 1 
+		if self.animation_frame > total_frames then self.animation_frame = 1 end
+		starsAnimation:drawImage(self.animation_frame, text_x_alignment, (dheight-self.yTimer.value)-5)
 	end
 	if self.textPosTimer then
 		gfx.drawText(self.text, self.textPosTimer.value, (dheight-text_height*1.5)-5)

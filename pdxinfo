@@ -1,7 +1,7 @@
 name=rainblockdate
 author=@thacuber2a03
 description=It's some random tetromino game for the Playdate console (rainblock edition)
-version=1.7.1
-buildNumber=7
+version=1.8
+buildNumber=8
 imagePath=launcher
 bundleID=com.thacuber.rainblockdate

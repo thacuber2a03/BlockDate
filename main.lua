@@ -234,9 +234,7 @@ local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlock
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
 
-local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
-local bigLineClearAnimation = gfx.imagetable.new('images/clearbig.gif')
-
+--local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
 
 ------------------------------------------
 -- Game related functions and variables --
