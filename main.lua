@@ -217,6 +217,7 @@ local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize 
 local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
 
 local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
 local bigLineClearAnimation = gfx.imagetable.new('images/clearbig.gif')
@@ -1277,11 +1278,24 @@ end
 function playdate.gameWillPause()
 	
 	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
-	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
+	local number_x = 115
+	local text_x = 30
 	
 	gfx.lockFocus(img)
-	gfx.setFont(bold)
-	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
+	
+	menu_background:drawIgnoringOffset(0, 0)
+
+	gfx.drawText("LEVEL", text_x, 40)
+	gfx.drawText(level, number_x, 40)
+	gfx.drawText("LINES", text_x, 65)
+	gfx.drawText(completedLines, number_x, 65)
+
+	gfx.drawText("SCORE", text_x, 150)
+	gfx.drawText(math.floor(score), number_x, 150)
+	gfx.drawText("HI SCORE", text_x+32, 195)
+	gfx.drawText(highscore, number_x, 210)
+
+
 	gfx.unlockFocus()
 
 	img:setInverted(darkMode)
