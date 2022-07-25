@@ -20,6 +20,28 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
+--[[
+	DONE:
+	- add theme array
+	- set background based on theme
+	- set music based on them
+	- set Font based on theme
+	- create function to update theme (in menu)
+
+	TO-DO:
+	- set sound effects based on theme
+	- update sound logic to simply looking of track:
+		-> use fp:setLoopRange( 10, 20 )
+	- Set effects based on theme
+	- set UI placement based on theme
+	
+	- disable "hold" functionality for "retro" theme
+	- prevent level from increasing for "chill" theme	
+	- make logic for themes modular so it can be maintained in a separate file
+	
+	- Fix bug where "shake" effect whites out the screen under the playing field
+]]
+
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
@@ -116,7 +138,9 @@ introRectT.updateCallback = function(timer)
 	screenClearNeeded = true
 end
 
-local highscore = loadData("highscore") or 0
+--local highscore = loadData("highscore") or 0
+--REPLACING WITH LOCAL VARIABLE SO I CAN READ THIS FROM OUR SCENE SCRIPTS
+highscore = loadData("highscore") or 0
 
 -- t spin detection here :)
 local lastAction = ""
@@ -136,12 +160,12 @@ local function random(min, max, float)
 end
 
 SOUNDSDIR = "assets/sounds/"
-local function loadSound(name)
+function loadSound(name)
 	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
 end
 
 MUSICDIR = "assets/music/"
-local function loadMusic(name)
+function loadMusic(name)
 	return assert(snd.fileplayer.new(MUSICDIR..name))
 end
 
@@ -155,13 +179,16 @@ local function loadImagetable(name)
 end
 
 
+
 ----------
 -- Font --
 ----------
 
-blockdate_font = gfx.font.new("assets/fonts/playtris")
+--blockdate_font = gfx.font.new("assets/fonts/playtris")
+--retro_font = gfx.font.new("assets/fonts/gamekid_m")
 gfx.setFont(blockdate_font)
-local text_width, text_height = gfx.getTextSize("0")
+text_width, text_height = gfx.getTextSize("0")
+
 
 ------------
 -- Sounds --
@@ -195,15 +222,21 @@ local sfx = {
 
 local bgmIntro = loadMusic("bgmintro")
 local bgmLoop = loadMusic("bgmloop")
-local chill = loadMusic("glad_to_be_stuck_inside")
+local playtris_music = loadMusic("bgmintro")
+playtris_music:setLoopRange( 36, 54 )
+local chill_music = loadMusic("glad_to_be_stuck_inside")
+local retro_music = loadMusic("Korobeiniki")
 
 local songs = {
 	intro = bgmIntro, 
-	playtris = bgmLoop, 
-	chill = chill
+	--playtris = bgmLoop, 
+	playtris = playtris_music, 
+	chill = chill_music,
+	retro = retro_music
 }
 
-currentSong = songs.intro
+--currentSong = songs.intro
+currentSong = songs.playtris
 
 -- generate song list to use in menu
 local song_list = {}
@@ -235,6 +268,21 @@ local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize 
 local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
 
 --local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
+
+------------
+-- Themes --
+------------
+-- DO I REALLY NEED THIS LIST THOUGH?
+local themes = {
+	"default",
+	"chill",
+	"retro"
+}
+-- ALTERNATIVE: READ THEMES FROM scene.lua
+local theme = "chill"
+
+-- set up scene for selected theme
+local scene = Scene.init(theme)
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -270,10 +318,12 @@ local refreshNeeded = true
 local screenClearNeeded = false
 local forceInertGridRefresh = false
 
+--[[
 -- scene for  "rainblocks" aesthetic
 local scene = {}
 scene = Scene.create()
 scene:setup()
+]]
 
 local lastAction = "none"
 
@@ -1259,9 +1309,10 @@ sysmenu:addMenuItem("restart", function()
 	end
 end)
 
-sysmenu:addOptionsMenuItem("music", song_list, "playtris", function(selectedSong)
+sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	currentSong:stop()
-	currentSong = songs[selectedSong]
+	scene = Scene.init(selectedTheme)
+	screenClearNeeded = true
 	currentSong:play(0)
 end)
 
@@ -1289,10 +1340,12 @@ currentSong:play()
 
 function playdate.update()
 	--Once intro is over move to main bgm loop
+	--[[
 	if not bgmIntro:isPlaying() and not currentSong:isPlaying() then
 		currentSong = songs["playtris"]
 		currentSong:play(0)
 	end
+	]]
 	_update()
 	_draw()
 end
