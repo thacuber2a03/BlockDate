@@ -27,17 +27,20 @@
 	- set music based on them
 	- set Font based on theme
 	- create function to update theme (in menu)
+	- set UI placement based on theme
 
 	TO-DO:
 	- set sound effects based on theme
 	- update sound logic to simply looking of track:
 		-> use fp:setLoopRange( 10, 20 )
 	- Set effects based on theme
-	- set UI placement based on theme
 	
 	- disable "hold" functionality for "retro" theme
 	- prevent level from increasing for "chill" theme	
+	- polish retro UI
 	- make logic for themes modular so it can be maintained in a separate file
+	
+	- save/load theme when entering/exiting the game
 	
 	- Fix bug where "shake" effect whites out the screen under the playing field
 ]]
@@ -471,7 +474,11 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
-	UITimer = time.new(500, 12, -4, easings.outCubic)
+	if them == "chill" then
+		UITimer = time.new(500, 12, -4, easings.outCubic)
+	else
+		UITimer = time.new(500, 8, -4, easings.outCubic)
+	end
 	playdate.inputHandlers.pop()
 end
 
@@ -623,7 +630,7 @@ local inputHandlers = {
 			lockDelay = 0
 			lock()
 			forceInertGridRefresh = true
-			if shake then displayYPos = dist*1.25 end
+			if shake and theme ~= "retro" then displayYPos = dist*1.25 end
 		end
 	end,
 	-- Skip the O piece when rotating.
@@ -657,7 +664,11 @@ local function reset()
 		screenClearNeeded = true
 	end
 
-	UITimer = time.new(500, -4, 12, easings.outCubic)
+	if theme == "chill" then
+		UITimer = time.new(500, -4, 12, easings.outCubic)
+	else
+		UITimer = time.new(500, -4, 8, easings.outCubic)		
+	end
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
 	inert = {}
@@ -725,7 +736,7 @@ local function updateGame()
 		elseif btn("left") then holdDirection(-1)
 		else holdDir = 0 end
 
-		if (btn("a") and btn("b")) and not hasHeldPiece then
+		if (btn("a") and btn("b")) and theme ~= "retro" and not hasHeldPiece then
 			local nextType
 			if not heldPiece then
 				heldPiece = piece.type
@@ -788,32 +799,55 @@ local function updateGame()
 end
 
 local function drawScores()
-	--[[]
-	--gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-	--blockdate_font:drawTextAligned("*SCORE*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-	gfx.drawText("SCORE", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize)
-	---gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
-	--gfx.drawTextAligned(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
-	gfx.drawText(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize)
-	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
-	]]
-	gfx.drawText("SCORE", 265,190)
-	gfx.drawText(math.floor(score), 265, 203)
+	if theme == "chill" then
+		gfx.drawText("SCORE", 265,190)
+		gfx.drawText(math.floor(score), 265, 203)
+	elseif theme == "retro" then
+		gfx.drawText("SCORE", 298, 8)
+		gfx.drawText(math.floor(score), 298, 48)		
+	else
+		gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
+		gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
+		gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+		gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
+	end
+
 end
 
 local function drawLevelInfo()
-	gfx.drawText("LEVEL", 60,190)
-	if level < 10 then
-		gfx.drawText(level, 120, 203)
+	if theme == "chill" then
+		gfx.drawText("LEVEL", 60,190)
+		if level < 10 then
+			gfx.drawText(level, 120, 203)
+		else
+			gfx.drawText(level, 120 - text_width, 203)
+		end
+
+	elseif theme == "retro" then
+		gfx.drawText("LEVEL", 300, 80)
+		gfx.drawText(level, 316, 96)
+		gfx.drawText("LINES", 300, 128)
+		gfx.drawText(completedLines, 316, 144)
 	else
-		gfx.drawText(level, 120 - text_width, 203)
+		gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
+		gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
+		gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
+		gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
 	end
 end
 
 local function drawHeldPiece() -- draw held piece
-	gfx.drawText("HOLD", (UITimer.value-5)*uiBlockSize, 2*uiBlockSize-1)
-	if heldPiece then
+	if theme == "chill" then
+		gfx.drawText("HOLD", (UITimer.value-5)*uiBlockSize, 2*uiBlockSize-1)
+
+	elseif theme == "retro" then
+		-- do nothing
+			
+	else
+		holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	end
+	
+	if heldPiece and theme ~= "retro" then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
@@ -825,13 +859,26 @@ local function drawHeldPiece() -- draw held piece
 end
 
 local function drawNextPiece() -- draw next piece
-	gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
+	if theme == "chill" then
+		gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
+
+	elseif theme == "retro" then
+		-- do nothing
+			
+	else
+		nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	end
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
+			if theme == "retro" then
+				--drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
+				drawBlock('*', x+(dwidth/uiBlockSize)-(acp and 7.5 or 7), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
+			else
+				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
+			end
 		end
 	end)
 end
@@ -1314,6 +1361,7 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	scene = Scene.init(selectedTheme)
 	screenClearNeeded = true
 	currentSong:play(0)
+	theme = selectedTheme
 end)
 
 

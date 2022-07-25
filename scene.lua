@@ -145,18 +145,18 @@ function scene.init(theme)
 				currentSong = self.playtris_music
 			end,
 			draw = function(self) end,
-			drawScores = function(self)
+			drawScores = function(score)
 				--draw scores
 				gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
 				--blockdate_font:drawTextAligned("*SCORE*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-				gfx.drawText("SCORE", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize)
+				--gfx.drawText("SCORE", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize)
 				gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
 				--gfx.drawTextAligned(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
-				gfx.drawText(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize)
+				--gfx.drawText(math.floor(score), (UITimer.value-2)*uiBlockSize, 11*uiBlockSize)
 				gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
 				gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
 			end,
-			drawLevelInfo = function(self)
+			drawLevelInfo = function(level)
 				--draw level info
 			end,
 			drawHeldPiece = function(self)
