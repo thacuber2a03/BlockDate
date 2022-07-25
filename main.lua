@@ -28,21 +28,21 @@
 	- set Font based on theme
 	- create function to update theme (in menu)
 	- set UI placement based on theme
-
+	- disable "hold" functionality for "retro" theme
+	- prevent level from increasing for "chill" theme	
+	
 	TO-DO:
 	- set sound effects based on theme
 	- update sound logic to simply looking of track:
 		-> use fp:setLoopRange( 10, 20 )
 	- Set effects based on theme
 	
-	- disable "hold" functionality for "retro" theme
-	- prevent level from increasing for "chill" theme	
 	- polish retro UI
 	- make logic for themes modular so it can be maintained in a separate file
 	
 	- save/load theme when entering/exiting the game
 	
-	- Fix bug where "shake" effect whites out the screen under the playing field
+	- Fix bug where "shake" effect whites out the screen under the playing field?
 ]]
 
 import "CoreLibs/graphics"
@@ -751,7 +751,13 @@ local function updateGame()
 			holdSound:play()
 		end
 
-		timer += level
+		if theme == "chill" then
+			-- chill mode always drops pieces at minimum speed
+			timer += 1
+		else
+			-- otherwise drop speed increases with the level
+			timer += level
+		end
 		lockDelay -= 1
 		if timer >= timerLimit then
 			refreshNeeded = true
@@ -1362,6 +1368,8 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	screenClearNeeded = true
 	currentSong:play(0)
 	theme = selectedTheme
+	if theme == "chill" then spawnSash("CHILL MODE!") end
+	
 end)
 
 
