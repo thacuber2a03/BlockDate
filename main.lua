@@ -38,10 +38,9 @@
 	- Set effects based on theme
 		-> return banner to default view
 		-> add fireworks for retro theme!
-	
-	- polish retro UI
+
+	- fix bug for scrolling pieces in when changing themes	
 	- make logic for themes modular so it can be maintained in a separate file
-	
 	- save/load theme when entering/exiting the game
 	
 ]]
@@ -913,7 +912,7 @@ local function drawGame()
 			screenWasCleared = true
 		end
 		
-		-- draw beautiful background scene from rainblocks
+		-- draw theme-specific elements
 		scene:draw()
 		
 		-- draw on-screen effects
@@ -1369,14 +1368,18 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	theme = selectedTheme
 	if theme == "chill" then spawnSash("CHILL MODE!") end
 	
-	--UITimer = nil 
+	local function timerCallback(timer)
+		screenClearNeeded = true
+	end
 	if theme == "chill" then
 		UITimer = time.new(500, -4, 12, easings.outCubic)
 	else
 		UITimer = time.new(500, -4, 8, easings.outCubic)		
 	end
-	refreshNeeded = true
-	screenClearNeeded = true
+	UITimer.updateCallback = timerCallback
+	UITimer.timerEndedCallback = timerCallback
+
+
 end)
 
 
