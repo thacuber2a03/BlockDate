@@ -36,13 +36,14 @@
 	- update sound logic to simply looking of track:
 		-> use fp:setLoopRange( 10, 20 )
 	- Set effects based on theme
+		-> return banner to default view
+		-> add fireworks for retro theme!
 	
 	- polish retro UI
 	- make logic for themes modular so it can be maintained in a separate file
 	
 	- save/load theme when entering/exiting the game
 	
-	- Fix bug where "shake" effect whites out the screen under the playing field?
 ]]
 
 import "CoreLibs/graphics"
@@ -282,7 +283,7 @@ local themes = {
 	"retro"
 }
 -- ALTERNATIVE: READ THEMES FROM scene.lua
-local theme = "chill"
+local theme = "default"
 
 -- set up scene for selected theme
 local scene = Scene.init(theme)
@@ -474,7 +475,7 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
-	if them == "chill" then
+	if theme == "chill" then
 		UITimer = time.new(500, 12, -4, easings.outCubic)
 	else
 		UITimer = time.new(500, 8, -4, easings.outCubic)
@@ -810,7 +811,7 @@ local function drawScores()
 		gfx.drawText(math.floor(score), 265, 203)
 	elseif theme == "retro" then
 		gfx.drawText("SCORE", 298, 8)
-		gfx.drawText(math.floor(score), 298, 48)		
+		gfx.drawText(math.floor(score), 298, 28)		
 	else
 		gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
 		gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
@@ -830,10 +831,10 @@ local function drawLevelInfo()
 		end
 
 	elseif theme == "retro" then
-		gfx.drawText("LEVEL", 300, 80)
-		gfx.drawText(level, 316, 96)
-		gfx.drawText("LINES", 300, 128)
-		gfx.drawText(completedLines, 316, 144)
+		gfx.drawText("LEVEL", 300, 64)
+		gfx.drawText(level, 316, 80)
+		gfx.drawText("LINES", 300, 116)
+		gfx.drawText(completedLines, 316, 132)
 	else
 		gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
 		gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
@@ -865,23 +866,22 @@ local function drawHeldPiece() -- draw held piece
 end
 
 local function drawNextPiece() -- draw next piece
+	
 	if theme == "chill" then
 		gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
-
 	elseif theme == "retro" then
 		-- do nothing
-			
 	else
 		nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	end
+	
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
 			if theme == "retro" then
-				--drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
-				drawBlock('*', x+(dwidth/uiBlockSize)-(acp and 7.5 or 7), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
+				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
 			else
 				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
 			end
@@ -1365,11 +1365,18 @@ end)
 sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	currentSong:stop()
 	scene = Scene.init(selectedTheme)
-	screenClearNeeded = true
 	currentSong:play(0)
 	theme = selectedTheme
 	if theme == "chill" then spawnSash("CHILL MODE!") end
 	
+	--UITimer = nil 
+	if theme == "chill" then
+		UITimer = time.new(500, -4, 12, easings.outCubic)
+	else
+		UITimer = time.new(500, -4, 8, easings.outCubic)		
+	end
+	refreshNeeded = true
+	screenClearNeeded = true
 end)
 
 
