@@ -32,9 +32,9 @@
 	- disable "hold" functionality for "retro" theme
 	- prevent level from increasing for "chill" theme	
 	- fixed bug for scrolling pieces in when changing themes	
+	- set sound effects based on theme
 	
 	TO-DO:
-	- set sound effects based on theme
 	- Set visual effects based on theme
 		-> return banner to default theme
 		-> add fireworks for retro theme!
@@ -244,6 +244,7 @@ currentSong = songs.playtris
 -- images --
 ------------
 
+--TO-DO: Delete these images here since we're loading them in the scene class
 local nextFrameImage = loadImage("next-frame")
 local holdFrameImage = loadImage("hold-frame")
 
@@ -273,8 +274,17 @@ local themes = {
 -- ALTERNATIVE: READ THEMES FROM scene.lua
 local theme = "default"
 
+
 -- set up scene for selected theme
 local scene = Scene.init(theme)
+
+-- get x,y location of where held piece should be displayed 
+heldPiece_x = scene.heldPiece_x or 8
+heldPiece_y = scene.heldPiece_y or 5
+
+-- get x,y location of where next piece should be displayed 
+--nextPiece_x = scene.heldPiece_x or 16.5
+nextPiece_y = scene.nextPiece_y or 3.5
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -296,7 +306,7 @@ local heldPiece
 
 local pieceHasChanged = false
 
-local UITimer
+UITimer = nil
 local inert = {}
 
 local timer = 0
@@ -463,11 +473,14 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
+	--[[
 	if theme == "chill" then
-		UITimer = time.new(500, 12, -4, easings.outCubic)
+		UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
 	else
-		UITimer = time.new(500, 8, -4, easings.outCubic)
+		UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
 	end
+	]]
+	UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
 end
 
@@ -653,11 +666,7 @@ local function reset()
 		screenClearNeeded = true
 	end
 
-	if theme == "chill" then
-		UITimer = time.new(500, -4, 11.5, easings.outCubic)
-	else
-		UITimer = time.new(500, -4, 8, easings.outCubic)		
-	end
+	UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)		
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
 	inert = {}
@@ -793,13 +802,14 @@ local function updateGame()
 	end -- state machine
 end
 
+--[[
 local function drawScores()
-	if theme == "chill" then
-		gfx.drawText("SCORE", 265,190)
-		gfx.drawText(math.floor(score), 265, 203)
-	elseif theme == "retro" then
-		gfx.drawText("SCORE", 298, 8)
-		gfx.drawText(math.floor(score), 298, 28)		
+	
+	-- if the scene as a drawScores function then call it here
+	if scene.drawScores then	
+		scene.drawScores(score) 
+		
+	-- otherwise we use the default draw function
 	else
 		gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
 		gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
@@ -810,19 +820,11 @@ local function drawScores()
 end
 
 local function drawLevelInfo()
-	if theme == "chill" then
-		gfx.drawText("LEVEL", 55,190)
-		if level < 10 then
-			gfx.drawText(level, 115, 203)
-		else
-			gfx.drawText(level, 120 - text_width, 203)
-		end
-
-	elseif theme == "retro" then
-		gfx.drawText("LEVEL", 300, 64)
-		gfx.drawText(level, 316, 80)
-		gfx.drawText("LINES", 300, 116)
-		gfx.drawText(completedLines, 316, 132)
+	
+	-- if the scene as a drawScores function then call it here
+	if scene.drawLevelInfo then	
+		scene.drawLevelInfo(level, completedLines) 
+		
 	else
 		gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
 		gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
@@ -830,17 +832,9 @@ local function drawLevelInfo()
 		gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
 	end
 end
+]]
 
 local function drawHeldPiece() -- draw held piece
-	if theme == "chill" then
-		gfx.drawText("HOLD", (UITimer.value-5)*uiBlockSize, 2*uiBlockSize-1)
-
-	elseif theme == "retro" then
-		-- do nothing
-			
-	else
-		holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
-	end
 	
 	if heldPiece and theme ~= "retro" then
 		loopThroughBlocks(function(_, x, y)
@@ -855,6 +849,7 @@ end
 
 local function drawNextPiece() -- draw next piece
 	
+	--[[
 	if theme == "chill" then
 		gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
 	elseif theme == "retro" then
@@ -862,17 +857,22 @@ local function drawNextPiece() -- draw next piece
 	else
 		nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
 	end
+	]]
 	
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
+			
 			if theme == "retro" then
 				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
 			else
 				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
 			end
+			
+			--drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y + heldPiece_y +(acp and 0.5 or (nextPiece == 1 and 0 or -0.5)),uiBlockSize)
+
 		end
 	end)
 end
@@ -1024,8 +1024,10 @@ local function drawGame()
 		--if pieceHasChanged or screenWasCleared then
 			drawHeldPiece()
 			drawNextPiece()
-			drawScores()
-			drawLevelInfo()
+			--drawScores()
+			--drawLevelInfo()
+			scene.drawScores(score)
+			scene.drawLevelInfo(level, completedLines) 
 		--end
 		gfx.fillRect(0, 0, 400, introRectT.value)
 
@@ -1357,13 +1359,25 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	theme = selectedTheme
 	if theme == "chill" then spawnSash("CHILL MODE!") end
 	
+	-- get x,y location of where held piece should be displayed 
+	heldPiece_x = scene.heldPiece_x or 8
+	heldPiece_y = scene.heldPiece_y or 5
+	
+	-- get x,y location of where next piece should be displayed 
+	--nextPiece_x = scene.nextPiece_x or 16.5
+	nextPiece_y = scene.heldPiece_y or 3.5
+	
 	local function timerCallback(timer)
 		screenClearNeeded = true
 	end
 	if theme == "chill" then
-		UITimer = time.new(500, -4, 11.5, easings.outCubic)
+	--	UITimer = time.new(500, -4, 11.5, easings.outCubic)
+		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
+		--UITimer = time.new(500, -4, heldPiece_x - 0.5, easings.outCubic)
+
 	else
-		UITimer = time.new(500, -4, 8, easings.outCubic)		
+		--UITimer = time.new(500, -4, 8, easings.outCubic)
+		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
 	end
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
