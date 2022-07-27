@@ -33,13 +33,13 @@
 	- prevent level from increasing for "chill" theme	
 	- fixed bug for scrolling pieces in when changing themes	
 	- set sound effects based on theme
+	- make logic for themes modular so it can be maintained in a separate file
 	
 	TO-DO:
 	- Set visual effects based on theme
 		-> return banner to default theme
 		-> add fireworks for retro theme!
 
-	- make logic for themes modular so it can be maintained in a separate file
 	- save/load theme when entering/exiting the game
 	- look at updateMusicVolume function to make sure it works with various themes
 	
@@ -58,8 +58,8 @@ import "effects/endline"
 import "effects/clearline"
 import "effects/sash"
 
--- adding for creating rainblock aesthetic
-Scene = import "scene"
+-- used to import the various themes
+import "themeManager"
 
 local gfx     <const> = playdate.graphics
 local snd     <const> = playdate.sound
@@ -142,8 +142,7 @@ introRectT.updateCallback = function(timer)
 end
 
 --local highscore = loadData("highscore") or 0
---REPLACING WITH LOCAL VARIABLE SO I CAN READ THIS FROM OUR SCENE SCRIPTS
-highscore = loadData("highscore") or 0
+highscore = loadData("highscore") or 0 -- making global variable so we can access it within the theme scripts
 
 -- t spin detection here :)
 local lastAction = ""
@@ -181,17 +180,6 @@ local function loadImagetable(name)
 	return assert(gfx.imagetable.new(IMAGESDIR..name))
 end
 
-
-
-----------
--- Font --
-----------
---[[
---blockdate_font = gfx.font.new("assets/fonts/playtris")
---retro_font = gfx.font.new("assets/fonts/gamekid_m")
-gfx.setFont(blockdate_font)
-text_width, text_height = gfx.getTextSize("0")
-]]
 
 ------------
 -- Sounds --
@@ -247,6 +235,7 @@ currentSong = songs.playtris
 --TO-DO: Delete these images here since we're loading them in the scene class
 local nextFrameImage = loadImage("next-frame")
 local holdFrameImage = loadImage("hold-frame")
+-----
 
 local crossmarkFieldImage = loadImage("crossmark-field")
 local crossmarkImage = loadImage("crossmark")
@@ -265,18 +254,25 @@ local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
 ------------
 -- Themes --
 ------------
--- DO I REALLY NEED THIS LIST THOUGH?
-local themes = {
-	"default",
-	"chill",
-	"retro"
-}
--- ALTERNATIVE: READ THEMES FROM scene.lua
+
+local themes = generate_theme_list("themes/")
+
 local theme = "default"
 
-
 -- set up scene for selected theme
-local scene = Scene.init(theme)
+--local scene = Scene.init(theme)
+local success, scene = pcall(load_theme, theme)
+if not success then
+	print("ERROR: Could not load theme ", theme)
+	print("Check that there is a valid scene file under /themes/" .. theme .. "/" .. theme .. ".lua")
+	print("Loading default theme...")
+	theme = "default"
+	error, scene = pcall(load_theme, theme)
+	if error then
+		print("ERROR: Could not load default theme")
+	end
+end
+
 
 -- get x,y location of where held piece should be displayed 
 heldPiece_x = scene.heldPiece_x or 8
@@ -1354,7 +1350,23 @@ end)
 
 sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	currentSong:stop()
-	scene = Scene.init(selectedTheme)
+	
+	--scene = Scene.init(selectedTheme)
+	
+	success, scene = pcall(load_theme, selectedTheme)
+	if not success then
+		print("ERROR: Could not load theme ", selectedTheme)
+		print("Check that there is a valid scene file under /themes/" .. selectedTheme .. "/" .. selectedTheme .. ".lua")
+		print("Loading default theme...")
+		selectedTheme = "default"
+		success, scene = pcall(load_theme, selectedTheme)
+		if not success then
+			print("ERROR: Could not load default theme")
+		end
+	else
+		print(selectedTheme, "loaded successfully!")
+	end
+	
 	currentSong:play(0)
 	theme = selectedTheme
 	if theme == "chill" then spawnSash("CHILL MODE!") end
@@ -1365,11 +1377,13 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	
 	-- get x,y location of where next piece should be displayed 
 	--nextPiece_x = scene.nextPiece_x or 16.5
-	nextPiece_y = scene.heldPiece_y or 3.5
+	nextPiece_y = scene.nextPiece_y or 3.5
 	
 	local function timerCallback(timer)
 		screenClearNeeded = true
 	end
+	
+	--[[
 	if theme == "chill" then
 	--	UITimer = time.new(500, -4, 11.5, easings.outCubic)
 		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
@@ -1379,6 +1393,8 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 		--UITimer = time.new(500, -4, 8, easings.outCubic)
 		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
 	end
+	]]
+	UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
 
