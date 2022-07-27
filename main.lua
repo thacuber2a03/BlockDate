@@ -22,6 +22,7 @@
 
 --[[
 	DONE:
+	- create new themes
 	- add theme array
 	- set background based on theme
 	- set music based on them
@@ -30,18 +31,17 @@
 	- set UI placement based on theme
 	- disable "hold" functionality for "retro" theme
 	- prevent level from increasing for "chill" theme	
+	- fixed bug for scrolling pieces in when changing themes	
 	
 	TO-DO:
 	- set sound effects based on theme
-	- update sound logic to simply looking of track:
-		-> use fp:setLoopRange( 10, 20 )
-	- Set effects based on theme
-		-> return banner to default view
+	- Set visual effects based on theme
+		-> return banner to default theme
 		-> add fireworks for retro theme!
 
-	- fix bug for scrolling pieces in when changing themes	
 	- make logic for themes modular so it can be maintained in a separate file
 	- save/load theme when entering/exiting the game
+	- look at updateMusicVolume function to make sure it works with various themes
 	
 ]]
 
@@ -186,18 +186,18 @@ end
 ----------
 -- Font --
 ----------
-
+--[[
 --blockdate_font = gfx.font.new("assets/fonts/playtris")
 --retro_font = gfx.font.new("assets/fonts/gamekid_m")
 gfx.setFont(blockdate_font)
 text_width, text_height = gfx.getTextSize("0")
-
+]]
 
 ------------
 -- Sounds --
 ------------
 
-local comboSounds = {}
+comboSounds = {}
 for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
 
 local function stopAllComboSounds()
@@ -206,17 +206,16 @@ local function stopAllComboSounds()
 	end
 end
 
-local dropSound = loadSound("drop")
-local specialSound = loadSound("special")
-local holdSound = loadSound("hold")
-local spinSound = loadSound("spin")
-local moveSound = loadSound("movetrimmed")
+dropSound = loadSound("drop")
+specialSound = loadSound("special")
+holdSound = loadSound("hold")
+spinSound = loadSound("spin")
+moveSound = loadSound("movetrimmed")
+menuScrollSound = loadSound("menu/menu-scroll")
+menuClickSound = loadSound("menu/menu-click")
 
-local menuScrollSound = loadSound("menu/menu-scroll")
-local menuClickSound = loadSound("menu/menu-click")
 
-
-local sfx = {
+sfx = {
 	specialSound,
 	holdSound,
 	menuScrollSound, menuClickSound,
@@ -240,16 +239,6 @@ local songs = {
 
 --currentSong = songs.intro
 currentSong = songs.playtris
-
--- generate song list to use in menu
-local song_list = {}
-local n=0
-for k,v in pairs(songs) do
-  n=n+1
-  song_list[n]=k
-end
---song_list.intro = nil	-- remove intro from song list
-
 
 ------------
 -- images --
@@ -665,7 +654,7 @@ local function reset()
 	end
 
 	if theme == "chill" then
-		UITimer = time.new(500, -4, 12, easings.outCubic)
+		UITimer = time.new(500, -4, 11.5, easings.outCubic)
 	else
 		UITimer = time.new(500, -4, 8, easings.outCubic)		
 	end
@@ -822,9 +811,9 @@ end
 
 local function drawLevelInfo()
 	if theme == "chill" then
-		gfx.drawText("LEVEL", 60,190)
+		gfx.drawText("LEVEL", 55,190)
 		if level < 10 then
-			gfx.drawText(level, 120, 203)
+			gfx.drawText(level, 115, 203)
 		else
 			gfx.drawText(level, 120 - text_width, 203)
 		end
@@ -1372,7 +1361,7 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 		screenClearNeeded = true
 	end
 	if theme == "chill" then
-		UITimer = time.new(500, -4, 12, easings.outCubic)
+		UITimer = time.new(500, -4, 11.5, easings.outCubic)
 	else
 		UITimer = time.new(500, -4, 8, easings.outCubic)		
 	end
