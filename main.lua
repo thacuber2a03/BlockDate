@@ -34,14 +34,13 @@
 	- fixed bug for scrolling pieces in when changing themes	
 	- set sound effects based on theme
 	- make logic for themes modular so it can be maintained in a separate file
+	- save/load theme when entering/exiting the game
+	- look at updateMusicVolume function to make sure it works with various themes
 	
 	TO-DO:
 	- Set visual effects based on theme
 		-> return banner to default theme
 		-> add fireworks for retro theme!
-
-	- save/load theme when entering/exiting the game
-	- look at updateMusicVolume function to make sure it works with various themes
 	
 ]]
 
@@ -256,11 +255,9 @@ local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
 ------------
 
 local themes = generate_theme_list("themes/")
-
-local theme = "default"
+local theme = loadData("theme") or "default" -- load last used theme from saved game data
 
 -- set up scene for selected theme
---local scene = Scene.init(theme)
 local success, scene = pcall(load_theme, theme)
 if not success then
 	print("ERROR: Could not load theme ", theme)
@@ -269,9 +266,11 @@ if not success then
 	theme = "default"
 	error, scene = pcall(load_theme, theme)
 	if error then
-		print("ERROR: Could not load default theme")
+		print("ERROR: Could not load default theme!")
 	end
 end
+
+currentSong:play(0)
 
 
 -- get x,y location of where held piece should be displayed 
@@ -279,7 +278,7 @@ heldPiece_x = scene.heldPiece_x or 8
 heldPiece_y = scene.heldPiece_y or 5
 
 -- get x,y location of where next piece should be displayed 
---nextPiece_x = scene.heldPiece_x or 16.5
+--nextPiece_x = scene.nextPiece_x or 16.5
 nextPiece_y = scene.nextPiece_y or 3.5
 
 ------------------------------------------
@@ -798,37 +797,6 @@ local function updateGame()
 	end -- state machine
 end
 
---[[
-local function drawScores()
-	
-	-- if the scene as a drawScores function then call it here
-	if scene.drawScores then	
-		scene.drawScores(score) 
-		
-	-- otherwise we use the default draw function
-	else
-		gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-		gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
-		gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-		gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
-	end
-
-end
-
-local function drawLevelInfo()
-	
-	-- if the scene as a drawScores function then call it here
-	if scene.drawLevelInfo then	
-		scene.drawLevelInfo(level, completedLines) 
-		
-	else
-		gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
-		gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
-		gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-		gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
-	end
-end
-]]
 
 local function drawHeldPiece() -- draw held piece
 	
@@ -1173,6 +1141,7 @@ local menu = {
 			musicVolume = val
 			saveData("music", musicVolume)
 			updateMusicVolume()
+			currentSong:setVolume(musicVolume)
 		end,
 	},
 	{
@@ -1184,6 +1153,7 @@ local menu = {
 		onchange = function(val)
 			soundsVolume = val
 			saveData("sounds", soundsVolume)
+			sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
 			updateSoundVolume(sfx)
 			updateSoundVolume(comboSounds)
 		end,
@@ -1350,9 +1320,7 @@ end)
 
 sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	currentSong:stop()
-	
-	--scene = Scene.init(selectedTheme)
-	
+		
 	success, scene = pcall(load_theme, selectedTheme)
 	if not success then
 		print("ERROR: Could not load theme ", selectedTheme)
@@ -1382,22 +1350,19 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	local function timerCallback(timer)
 		screenClearNeeded = true
 	end
-	
-	--[[
-	if theme == "chill" then
-	--	UITimer = time.new(500, -4, 11.5, easings.outCubic)
-		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
-		--UITimer = time.new(500, -4, heldPiece_x - 0.5, easings.outCubic)
 
-	else
-		--UITimer = time.new(500, -4, 8, easings.outCubic)
-		UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
-	end
-	]]
 	UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
+	
+	updateMusicVolume()
+	sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
+	updateSoundVolume(sfx)
+	updateSoundVolume(comboSounds)
+	currentSong:setVolume(musicVolume)
 
+	-- save theme 
+	saveData("theme", theme)
 
 end)
 
@@ -1419,18 +1384,13 @@ function updateSoundVolume(soundTable)
 end
 
 updateMusicVolume()
+sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
 updateSoundVolume(sfx)
 updateSoundVolume(comboSounds)
 currentSong:play()
+currentSong:setVolume(musicVolume)
 
 function playdate.update()
-	--Once intro is over move to main bgm loop
-	--[[
-	if not bgmIntro:isPlaying() and not currentSong:isPlaying() then
-		currentSong = songs["playtris"]
-		currentSong:play(0)
-	end
-	]]
 	_update()
 	_draw()
 end
