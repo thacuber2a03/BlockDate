@@ -57,7 +57,6 @@ import "effects/endline"
 import "effects/clearline"
 import "effects/sash"
 
--- used to import the various themes
 import "themeManager"
 
 local gfx     <const> = playdate.graphics
@@ -294,7 +293,7 @@ local levelIncreased = false
 local lostY = 1
 local lost = false
 
-local clearLines, lines, sashes = {}, {}, {}
+local clearLines, lines, effects = {}, {}, {}
 
 local holdDir = 0
 local heldPiece
@@ -315,17 +314,16 @@ local refreshNeeded = true
 local screenClearNeeded = false
 local forceInertGridRefresh = false
 
---[[
--- scene for  "rainblocks" aesthetic
-local scene = {}
-scene = Scene.create()
-scene:setup()
-]]
-
 local lastAction = "none"
 
-local function spawnSash(message)
-	if sash then table.insert(sashes, Sash(message)) end
+local function visualEffect(message)
+	if sash then 
+		if scene.visualEffect then
+			table.insert(effects, scene.visualEffect(message)) 
+		else
+			table.insert(effects, Sash(message)) 
+		end
+	end
 end
 
 local function canPieceMove(testX, testY, testRotation)
@@ -569,11 +567,11 @@ local function lock()
 			scoreGoal += (10+(tspin and 20 or 0))*i * combo
 			if tspin or clearedLines >= 4 then
 				if clearedLines == 0 then
-					spawnSash("T-SPIN!")
+					visualEffect("T-SPIN!")
 				else
 					stopAllComboSounds()
 					specialSound:play()
-					spawnSash((tspin and "T-SPIN " or "")..lineClearNames[clearedLines])
+					visualEffect((tspin and "T-SPIN " or "")..lineClearNames[clearedLines])
 				end
 			end
 		end
@@ -584,22 +582,22 @@ local function lock()
 		-- Same points as a single.
 		stopAllComboSounds()
 		scoreGoal += 10 * combo
-		spawnSash("T-Spin Single!")
+		visualEffect("T-Spin Single!")
 	elseif clearedLines == 1 then
 		stopAllComboSounds()
 		scoreGoal += 20 * combo
-		spawnSash("T-Spin")
+		visualEffect("T-Spin")
 	elseif clearedLines >= 4 then
 		stopAllComboSounds()
 		specialSound:play()
-		spawnSash((tspin and "T-Spin " or "").."Playtris!")
+		visualEffect((tspin and "T-Spin " or "").."Playtris!")
 		scoreGoal += (15 + (tspin and 10 or 0)) * combo
 	end
 	]]
 
 	if allclear then
 		scoreGoal += 25 * combo
-		spawnSash("ALL CLEAR!")
+		visualEffect("ALL CLEAR!")
 	end
 
 	if not completedLine then
@@ -652,7 +650,7 @@ local function reset()
 	combo, level = 1, 1
 	lostY = 1
 	lost = false
-	clearLines, lines, sashes = {}, {}, {}
+	clearLines, lines, effects = {}, {}, {}
 	holdDir = 0
 	heldPiece = nil
 	pieceHasChanged = false
@@ -729,7 +727,8 @@ local function updateGame()
 		elseif btn("left") then holdDirection(-1)
 		else holdDir = 0 end
 
-		if (btn("a") and btn("b")) and theme ~= "retro" and not hasHeldPiece then
+		--if (btn("a") and btn("b")) and theme ~= "retro" and not hasHeldPiece then
+		if (btn("a") and btn("b")) and not hasHeldPiece then
 			local nextType
 			if not heldPiece then
 				heldPiece = piece.type
@@ -879,7 +878,7 @@ local function drawGame()
 			end
 		end
 		
-		if #sashes > 0 then	updateEffect(sashes, #sashes, sashes[#sashes]) end
+		if #effects > 0 then	updateEffect(effects, #effects, effects[#effects]) end
 		
 		-- Update screen shake
 		if displayYPos ~= 0 then
@@ -1337,7 +1336,7 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	
 	currentSong:play(0)
 	theme = selectedTheme
-	if theme == "chill" then spawnSash("CHILL MODE!") end
+	if theme == "chill" then visualEffect("CHILL MODE!") end
 	
 	-- get x,y location of where held piece should be displayed 
 	heldPiece_x = scene.heldPiece_x or 8

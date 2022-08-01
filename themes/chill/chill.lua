@@ -4,6 +4,9 @@ local disp    <const> = playdate.display
 
 local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
+-- initialize image table for visual effect
+local starsAnimation = gfx.imagetable.new('assets/images/stars')
+local total_frames = starsAnimation:getLength()
 
 print('chill theme selected!')
 local scene = {
@@ -101,9 +104,94 @@ local scene = {
 				end
 			end)
 		end
+	end,
+	
+	visualEffect = function(message)
+		-- visual effect to display message to player
+		-- initialize our effect object here:
+		local effect = {}
+		effect.__index = effect
+		
+		effect.text = message
+		effect.animation_frame = 1
+		local textWidth, text_height = gfx.getTextSize(effect.text)
+		effect.x = 20
+		effect.y = 120
+		
+		-- timer to determine how long to display effect
+		playdate.timer.new(2000,function() effect.dead = true end )
+		
+		-- update effect
+		function effect:update()
+			self.animation_frame = self.animation_frame + 1 
+			if self.animation_frame > total_frames then self.animation_frame = 1 end
+		end
+		
+		-- draw effect
+		function effect:draw()
+			starsAnimation:drawImage(self.animation_frame, self.x - 20, self.y)
+			starsAnimation:drawImage(self.animation_frame, self.x + 20, self.y)
+			starsAnimation:drawImage(self.animation_frame, self.x + 60, self.y)
+			gfx.drawText(self.text, self.x, self.y)
+		end
+		
+		-- return our effect object
+		return effect		
 	end
 }
+
+--[[
+-- Define visual effect
+class("Sash").extends()
+
+local function setTimerEndCallback(timer, args, callback)
+	if type(args) == "function" then
+		callback = args
+		args = {}
+	end
+	timer.timerEndedArgs = args
+	timer.timerEndedCallback = callback
+end
+
+function Sash:init(text)
+	self.text = text
+
+	-- haha bad code go brr
+	self.yTimer = Timer(125, 0, 40, ease.outBack)
+	self.yTimer.discardOnCompletion = false
+	local textWidth = gfx.getSystemFont("bold"):getTextWidth(text)
+	setTimerEndCallback(self.yTimer, function()
+		self.textPosTimer = Timer(250, -textWidth, textWidth/2, ease.outCubic)
+		setTimerEndCallback(self.textPosTimer, function()
+			timer.performAfterDelay(500, function()
+				self.textPosTimer = Timer(250, 10+textWidth/2, dwidth, ease.inCubic)
+				setTimerEndCallback(self.textPosTimer, function()
+					self.yTimer = Timer(250, 40, 0, ease.inBack)
+					setTimerEndCallback(self.yTimer, function() self.dead = true end)
+				end)
+			end)
+		end)
+	end)
+end
+
+function Sash:update() end
+
+function Sash:draw()
+	gfx.pushContext()
+	if self.yTimer then
+		gfx.fillRect(0, (dheight-self.yTimer.value)-5, dwidth, gfx.getSystemFont("bold"):getHeight()*2)
+	end
+	if self.textPosTimer then
+		gfx.setImageDrawMode(darkMode and "fillBlack" or "fillWhite")
+		gfx.drawText("*"..self.text.."*", self.textPosTimer.value, (dheight-gfx.getSystemFont("bold"):getHeight()*1.5)-5)
+	end
+	gfx.popContext()
+end
+]]
+
 
 scene:setup()
 
 return scene
+
+
