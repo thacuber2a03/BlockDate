@@ -20,29 +20,6 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
---[[
-	DONE:
-	- create new themes
-	- add theme array
-	- set background based on theme
-	- set music based on them
-	- set Font based on theme
-	- create function to update theme (in menu)
-	- set UI placement based on theme
-	- disable "hold" functionality for "retro" theme
-	- prevent level from increasing for "chill" theme	
-	- fixed bug for scrolling pieces in when changing themes	
-	- set sound effects based on theme
-	- make logic for themes modular so it can be maintained in a separate file
-	- save/load theme when entering/exiting the game
-	- look at updateMusicVolume function to make sure it works with various themes
-	
-	TO-DO:
-	- Set visual effects based on theme
-		-> return banner to default theme
-		-> add fireworks for retro theme!
-	
-]]
 
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
@@ -139,7 +116,6 @@ introRectT.updateCallback = function(timer)
 	screenClearNeeded = true
 end
 
---local highscore = loadData("highscore") or 0
 highscore = loadData("highscore") or 0 -- making global variable so we can access it within the theme scripts
 
 -- t spin detection here :)
@@ -223,7 +199,6 @@ local songs = {
 	retro = retro_music
 }
 
---currentSong = songs.intro
 currentSong = songs.playtris
 
 ------------
@@ -246,8 +221,6 @@ local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gri
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
-
---local lineClearAnimation = gfx.imagetable.new('images/clear.gif')
 
 ------------
 -- Themes --
@@ -466,13 +439,6 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
-	--[[
-	if theme == "chill" then
-		UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
-	else
-		UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
-	end
-	]]
 	UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
 end
@@ -561,9 +527,8 @@ local function lock()
 		if not allclear then break end
 	end
 
+	local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
 	for i=0, 4 do
-		--local lineClearNames = {"SINGLE", "DOUBLE", "TRIPLE", "PLAYTRIS"}
-		local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
 		if clearedLines == i then
 			scoreGoal += (10+(tspin and 20 or 0))*i * combo
 			if tspin or clearedLines >= 4 then
@@ -578,23 +543,6 @@ local function lock()
 		end
 	end
 
-	--[[
-	if clearedLines == 0 then
-		-- Same points as a single.
-		stopAllComboSounds()
-		scoreGoal += 10 * combo
-		visualEffect("T-Spin Single!")
-	elseif clearedLines == 1 then
-		stopAllComboSounds()
-		scoreGoal += 20 * combo
-		visualEffect("T-Spin")
-	elseif clearedLines >= 4 then
-		stopAllComboSounds()
-		specialSound:play()
-		visualEffect((tspin and "T-Spin " or "").."Playtris!")
-		scoreGoal += (15 + (tspin and 10 or 0)) * combo
-	end
-	]]
 
 	if allclear then
 		scoreGoal += 25 * combo
@@ -728,7 +676,6 @@ local function updateGame()
 		elseif btn("left") then holdDirection(-1)
 		else holdDir = 0 end
 
-		--if (btn("a") and btn("b")) and theme ~= "retro" and not hasHeldPiece then
 		if (btn("a") and btn("b")) and not hasHeldPiece then
 			local nextType
 			if not heldPiece then
@@ -812,16 +759,6 @@ local function drawHeldPiece() -- draw held piece
 end
 
 local function drawNextPiece() -- draw next piece
-	
-	--[[
-	if theme == "chill" then
-		gfx.drawText("NEXT", dwidth-(UITimer.value)*uiBlockSize, 2*uiBlockSize-1)
-	elseif theme == "retro" then
-		-- do nothing
-	else
-		nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
-	end
-	]]
 	
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
@@ -988,8 +925,6 @@ local function drawGame()
 		--if pieceHasChanged or screenWasCleared then
 			drawHeldPiece()
 			drawNextPiece()
-			--drawScores()
-			--drawLevelInfo()
 			scene.drawScores(score)
 			scene.drawLevelInfo(level, completedLines) 
 		--end
