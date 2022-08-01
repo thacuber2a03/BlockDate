@@ -562,7 +562,8 @@ local function lock()
 	end
 
 	for i=0, 4 do
-		local lineClearNames = {"SINGLE", "DOUBLE", "TRIPLE", "PLAYTRIS"}
+		--local lineClearNames = {"SINGLE", "DOUBLE", "TRIPLE", "PLAYTRIS"}
+		local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
 		if clearedLines == i then
 			scoreGoal += (10+(tspin and 20 or 0))*i * combo
 			if tspin or clearedLines >= 4 then
