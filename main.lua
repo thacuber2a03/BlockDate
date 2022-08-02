@@ -91,13 +91,15 @@ maxLockDelayRotations = 15
 	grid, darkMode,
 	inverseRotation,
 	musicVolume, soundsVolume,
-	bigBlocks
+	bigBlocks,
+	chill_mode
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
 	loadData("music") or 1, loadData("sounds") or 1,
-	loadData("bigBlocks") or false
+	loadData("bigBlocks") or false,
+	loadData("chill_mode") or false
 
 if bigBlocks then
 	blockSize = bigBlockSize
@@ -691,7 +693,7 @@ local function updateGame()
 			holdSound:play()
 		end
 
-		if theme == "chill" then
+		if chill_mode then
 			-- chill mode always drops pieces at minimum speed
 			timer += 1
 		else
@@ -1023,6 +1025,16 @@ local menu = {
 			saveData("sash", sash)
 		end,
 	},
+	--[[ code to add chill mode to options menu ]]
+	{
+		name = "Chill mode",
+		type = "crossmark",
+		state = chill_mode,
+		ontoggle = function(val)
+			chill_mode = val
+			saveData("chill_mode", chill_mode)
+		end,
+	},
 	{
 		name = "Grid",
 		type = "crossmark",
@@ -1272,7 +1284,7 @@ sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
 	
 	currentSong:play(0)
 	theme = selectedTheme
-	if theme == "chill" then visualEffect("CHILL MODE!") end
+	--if theme == "chill" then visualEffect("CHILL MODE!") end
 	
 	-- get x,y location of where held piece should be displayed 
 	heldPiece_x = scene.heldPiece_x or 8
