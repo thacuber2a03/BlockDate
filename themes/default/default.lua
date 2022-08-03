@@ -22,6 +22,9 @@ local scene = {
 		self.playtris_music:setLoopRange( 36, 54 )
 		currentSong = self.playtris_music
 		
+		-- set menu background
+		--menu_background = gfx.image.new(400,240)
+		menu_background = gfx.image.new("assets/images/default_menu")
 		
 		-- initialize sound effects
 		comboSounds = {}

@@ -10,7 +10,7 @@ local total_frames = firework_animation:getLength()
 
 local scene = {
 	
-	-- x and y of held nad next pieces
+	-- x and y of held and next pieces
 	--heldPiece_x = 12,
 	--heldPiece_x = -5, -- put piece off screen to keep the retro aesthetic?
 	--heldPiece_y = 5,
@@ -26,22 +26,17 @@ local scene = {
 		gfx.setFont(retro_font)
 		currentSong = self.retro_music
 		
+		-- set menu background
+		menu_background = gfx.image.new("themes/retro/assets/images/menu_background")
+		
 		-- initialize sound effects
 		comboSounds = {}
-		--[[
 		for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
-		dropSound = loadSound("drop")
-		specialSound = loadSound("retro/clear4")
-		spinSound = loadSound("retro/rotate")
-		moveSound = loadSound("retro/move")
-		]]
 
-		for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
 		dropSound = snd.sampleplayer.new("assets/sounds/drop")
 		specialSound = snd.sampleplayer.new("themes/retro/assets/sounds/clear4")
 		spinSound = snd.sampleplayer.new("themes/retro/assets/sounds/rotate")
 		moveSound = snd.sampleplayer.new("themes/retro/assets/sounds/move")		
-		--snd.sampleplayer.new(SOUNDSDIR..name)
 		
 	end,
 	

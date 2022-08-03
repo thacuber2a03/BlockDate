@@ -30,6 +30,9 @@ local scene = {
 		self.animationTimer = playdate.timer.new(500, function() self:nextFrame() end)
 		self.animationTimer.repeats = true
 		
+		-- set menu background
+		menu_background = gfx.image.new("themes/chill/assets/images/launchImage")
+		
 		-- initialize font
 		self.font = gfx.font.new("assets/fonts/playtris")
 		gfx.setFont(self.font)

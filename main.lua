@@ -212,7 +212,8 @@ local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize 
 local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
-menu_background = gfx.image.new("assets/images/menu_background")
+--menu_background = gfx.image.new("assets/images/menu_background")
+menu_background = gfx.image.new("assets/images/default_menu")
 
 ------------
 -- Themes --
@@ -1349,14 +1350,14 @@ function playdate.gameWillPause()
 	
 	menu_background:drawIgnoringOffset(0, 0)
 
-	gfx.drawText("LEVEL", text_x, 40)
+	gfx.drawText("Level", text_x, 40)
 	gfx.drawText(level, number_x, 40)
-	gfx.drawText("LINES", text_x, 65)
+	gfx.drawText("Lines", text_x, 65)
 	gfx.drawText(completedLines, number_x, 65)
 
-	gfx.drawText("SCORE", text_x, 150)
+	gfx.drawText("Score", text_x, 150)
 	gfx.drawText(math.floor(score), number_x, 150)
-	gfx.drawText("HI SCORE", text_x+32, 195)
+	gfx.drawText("Hi Score", text_x+32, 195)
 	gfx.drawText(highscore, number_x, 210)
 
 	gfx.unlockFocus()
