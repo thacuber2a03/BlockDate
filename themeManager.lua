@@ -6,8 +6,6 @@ local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
 local theme_dir = "themes/"
 
---local scene = {}
-
 -- generate table of themes from directories found within the given path
 function generate_theme_list(path)
 

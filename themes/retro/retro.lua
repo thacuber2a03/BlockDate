@@ -5,34 +5,43 @@ local disp    <const> = playdate.display
 local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
 -- initialize image table for visual effect
-local firework_animation = gfx.imagetable.new('assets/images/fireworks')
+local firework_animation = gfx.imagetable.new('themes/retro/assets/images/fireworks')
 local total_frames = firework_animation:getLength()
 
-print('Retro theme selected!')
 local scene = {
 	
 	-- x and y of held nad next pieces
 	--heldPiece_x = 12,
-	heldPiece_x = -5, -- put piece off screen to keep the retro aesthetic
-	heldPiece_y = 5,
+	--heldPiece_x = -5, -- put piece off screen to keep the retro aesthetic?
+	--heldPiece_y = 5,
 	nextPiece_x = 16.5,
 	nextPiece_y = 16.5,
 	
-	retro_music = loadMusic("Korobeiniki"),
+	--retro_music = loadMusic("Korobeiniki"),
+	retro_music = snd.fileplayer.new("themes/retro/assets/music/Korobeiniki"),
 	
 	setup = function(self) 
-		self.image = gfx.image.new('assets/images/retro_background')
-		retro_font = gfx.font.new("assets/fonts/gamekid_m")
+		self.image = gfx.image.new('themes/retro/assets/images/retro_background')
+		retro_font = gfx.font.new("themes/retro/assets/fonts/gamekid_m")
 		gfx.setFont(retro_font)
 		currentSong = self.retro_music
 		
 		-- initialize sound effects
 		comboSounds = {}
+		--[[
 		for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
 		dropSound = loadSound("drop")
 		specialSound = loadSound("retro/clear4")
 		spinSound = loadSound("retro/rotate")
 		moveSound = loadSound("retro/move")
+		]]
+
+		for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
+		dropSound = snd.sampleplayer.new("assets/sounds/drop")
+		specialSound = snd.sampleplayer.new("themes/retro/assets/sounds/clear4")
+		spinSound = snd.sampleplayer.new("themes/retro/assets/sounds/rotate")
+		moveSound = snd.sampleplayer.new("themes/retro/assets/sounds/move")		
+		--snd.sampleplayer.new(SOUNDSDIR..name)
 		
 	end,
 	
@@ -61,7 +70,7 @@ local scene = {
 				
 		-- initialize our fireworks
 		fireworks = {}
-		local _x = 16
+		local _x = 0
 		local _y = 64
 		
 		for i = 1, 3 do
@@ -83,12 +92,12 @@ local scene = {
 			
 			for i, firework in ipairs(fireworks) do  -- #v is the size of v for lists.
 				
-				-- move firework up in the sky
-				firework.y -= 1
-				
-				-- detonate firework randomly
 				if not firework.exploded then 
-					if math.random(1,32) == 1 then
+					-- move firework up in the sky
+					firework.y -= 1
+				
+					-- detonate firework randomly
+					if math.random(1,32) == 1 or firework.y < 16 then
 						firework.exploded = true
 					end
 				end

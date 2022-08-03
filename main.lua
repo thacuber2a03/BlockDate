@@ -186,22 +186,12 @@ sfx = {
 	dropSound, spinSound, moveSound,
 }
 
-local bgmIntro = loadMusic("bgmintro")
-local bgmLoop = loadMusic("bgmloop")
+--local bgmIntro = loadMusic("bgmintro")
+--local bgmLoop = loadMusic("bgmloop")
 local playtris_music = loadMusic("bgmintro")
 playtris_music:setLoopRange( 36, 54 )
-local chill_music = loadMusic("glad_to_be_stuck_inside")
-local retro_music = loadMusic("Korobeiniki")
 
-local songs = {
-	intro = bgmIntro, 
-	--playtris = bgmLoop, 
-	playtris = playtris_music, 
-	chill = chill_music,
-	retro = retro_music
-}
-
-currentSong = songs.playtris
+currentSong = playtris_music -- current song is 
 
 ------------
 -- images --
@@ -222,7 +212,7 @@ local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize 
 local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
-local menu_background = gfx.image.new("assets/rainblock_images/launchImage")
+menu_background = gfx.image.new("assets/images/menu_background")
 
 ------------
 -- Themes --
@@ -1016,6 +1006,7 @@ local menu = {
 			saveData("shake", shake)
 		end,
 	},
+	--[[ commenting sash option out to remove it from the options menu
 	{
 		name = "Sash",
 		type = "crossmark",
@@ -1025,7 +1016,8 @@ local menu = {
 			saveData("sash", sash)
 		end,
 	},
-	--[[ code to add chill mode to options menu ]]
+	]]
+	-- code to add chill mode to options menu
 	{
 		name = "Chill mode",
 		type = "crossmark",
@@ -1315,11 +1307,16 @@ end)
 
 
 function updateMusicVolume()
+	if currentSong:getVolume() ~= musicVolume then
+		currentSong:setVolume(musicVolume)
+	end
+	--[[
 	for i,v in pairs(songs) do
 		if v:getVolume() ~= musicVolume then
 			v:setVolume(musicVolume)
 		end
 	end
+	]]
 end
 
 function updateSoundVolume(soundTable)

@@ -4,8 +4,6 @@ local disp    <const> = playdate.display
 
 local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
-
-print('Default theme selected!')
 local scene = {
 	
 	-- initialize music

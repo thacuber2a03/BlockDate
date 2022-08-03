@@ -5,22 +5,23 @@ local disp    <const> = playdate.display
 local dwidth <const>, dheight <const> = disp.getWidth(), disp.getHeight()
 
 -- initialize image table for visual effect
-local starsAnimation = gfx.imagetable.new('assets/images/stars')
+local starsAnimation = gfx.imagetable.new('themes/chill/assets/images/stars')
 local total_frames = starsAnimation:getLength()
 
-print('chill theme selected!')
 local scene = {
 
 	-- set x and y locations of held block in UI for this theme
 	heldPiece_x = 12,
 	heldPiece_y = 5,
 	
-	bgImageTable = gfx.imagetable.new('assets/rainblock_images/bg.gif'),
+	bgImageTable = gfx.imagetable.new('themes/chill/assets/images/bg.gif'),
 	bgImageIndex = 1,
-	skyImage = gfx.image.new('assets/rainblock_images/sky.png'),
-	clouds1Image = gfx.image.new('assets/rainblock_images/clouds1.png'),
-	clouds2Image = gfx.image.new('assets/rainblock_images/clouds2.png'),
-	chill_music = loadMusic("glad_to_be_stuck_inside"),
+	skyImage = gfx.image.new('themes/chill/assets/images/sky.png'),
+	clouds1Image = gfx.image.new('themes/chill/assets/images/clouds1.png'),
+	clouds2Image = gfx.image.new('themes/chill/assets/images/clouds2.png'),
+
+	chill_music = snd.fileplayer.new("themes/chill/assets/music/glad_to_be_stuck_inside"),
+
 	clouds1X = 0,
 	clouds2X = 0,
 	animationTimer = nil,
@@ -118,7 +119,7 @@ local scene = {
 		effect.x = 20
 		effect.y = 120
 
-		effect.x = 135
+		--effect.x = 135
 		effect.x = 10
 		effect.y = 220
 
