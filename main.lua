@@ -235,8 +235,6 @@ if not success then
 	end
 end
 
-currentSong:play(0)
-
 
 -- get x,y location of where held piece should be displayed 
 heldPiece_x = scene.heldPiece_x or 8
