@@ -1330,7 +1330,7 @@ updateMusicVolume()
 sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
 updateSoundVolume(sfx)
 updateSoundVolume(comboSounds)
-currentSong:play()
+currentSong:play(0)
 currentSong:setVolume(musicVolume)
 
 function playdate.update()
