@@ -20,6 +20,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
 
+
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
 import "CoreLibs/crank"
@@ -32,6 +33,8 @@ import "constants"
 import "effects/endline"
 import "effects/clearline"
 import "effects/sash"
+
+import "themeManager"
 
 local gfx     <const> = playdate.graphics
 local snd     <const> = playdate.sound
@@ -88,13 +91,15 @@ maxLockDelayRotations = 15
 	grid, darkMode,
 	inverseRotation,
 	musicVolume, soundsVolume,
-	bigBlocks
+	bigBlocks,
+	chill_mode
 =
 	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
 	loadData("grid") or false, loadData("darkMode") or false,
 	loadData("inverseRotation") or false,
 	loadData("music") or 1, loadData("sounds") or 1,
-	loadData("bigBlocks") or false
+	loadData("bigBlocks") or false,
+	loadData("chill_mode") or false
 
 if bigBlocks then
 	blockSize = bigBlockSize
@@ -113,7 +118,7 @@ introRectT.updateCallback = function(timer)
 	screenClearNeeded = true
 end
 
-local highscore = loadData("highscore") or 0
+highscore = loadData("highscore") or 0 -- making global variable so we can access it within the theme scripts
 
 -- t spin detection here :)
 local lastAction = ""
@@ -133,12 +138,12 @@ local function random(min, max, float)
 end
 
 SOUNDSDIR = "assets/sounds/"
-local function loadSound(name)
+function loadSound(name)
 	return assert(snd.sampleplayer.new(SOUNDSDIR..name))
 end
 
 MUSICDIR = "assets/music/"
-local function loadMusic(name)
+function loadMusic(name)
 	return assert(snd.fileplayer.new(MUSICDIR..name))
 end
 
@@ -151,11 +156,12 @@ local function loadImagetable(name)
 	return assert(gfx.imagetable.new(IMAGESDIR..name))
 end
 
+
 ------------
 -- Sounds --
 ------------
 
-local comboSounds = {}
+comboSounds = {}
 for i=1, 4 do table.insert(comboSounds, loadSound("combo/combo"..i)) end
 
 local function stopAllComboSounds()
@@ -164,36 +170,37 @@ local function stopAllComboSounds()
 	end
 end
 
-local dropSound = loadSound("drop")
-local specialSound = loadSound("special")
-local holdSound = loadSound("hold")
-local spinSound = loadSound("spin")
-local moveSound = loadSound("movetrimmed")
+dropSound = loadSound("drop")
+specialSound = loadSound("special")
+holdSound = loadSound("hold")
+spinSound = loadSound("spin")
+moveSound = loadSound("movetrimmed")
+menuScrollSound = loadSound("menu/menu-scroll")
+menuClickSound = loadSound("menu/menu-click")
 
-local menuScrollSound = loadSound("menu/menu-scroll")
-local menuClickSound = loadSound("menu/menu-click")
 
-
-local sfx = {
+sfx = {
 	specialSound,
 	holdSound,
 	menuScrollSound, menuClickSound,
 	dropSound, spinSound, moveSound,
 }
 
-local bgmIntro = loadMusic("bgmintro")
-local bgmLoop = loadMusic("bgmloop")
+--local bgmIntro = loadMusic("bgmintro")
+--local bgmLoop = loadMusic("bgmloop")
+local playtris_music = loadMusic("bgmintro")
+playtris_music:setLoopRange( 36, 54 )
 
-local songs = {
-	bgmIntro, bgmLoop
-}
+currentSong = playtris_music -- current song is 
 
 ------------
 -- images --
 ------------
 
+--TO-DO: Delete these images here since we're loading them in the scene class
 local nextFrameImage = loadImage("next-frame")
 local holdFrameImage = loadImage("hold-frame")
+-----
 
 local crossmarkFieldImage = loadImage("crossmark-field")
 local crossmarkImage = loadImage("crossmark")
@@ -205,6 +212,37 @@ local gridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize 
 local gridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
 local inertGridImage = gfx.image.new(defaultBlockSize * gridXCount, defaultBlockSize * gridYCount)
 local inertGridImageBig = gfx.image.new(bigBlockSize * gridXCount, bigBlockSize * gridYCount)
+--menu_background = gfx.image.new("assets/images/menu_background")
+menu_background = gfx.image.new("assets/images/default_menu")
+
+------------
+-- Themes --
+------------
+
+local themes = generate_theme_list("themes/")
+local theme = loadData("theme") or "default" -- load last used theme from saved game data
+
+-- set up scene for selected theme
+local success, scene = pcall(load_theme, theme)
+if not success then
+	print("ERROR: Could not load theme ", theme)
+	print("Check that there is a valid scene file under /themes/" .. theme .. "/" .. theme .. ".lua")
+	print("Loading default theme...")
+	theme = "default"
+	error, scene = pcall(load_theme, theme)
+	if error then
+		print("ERROR: Could not load default theme!")
+	end
+end
+
+
+-- get x,y location of where held piece should be displayed 
+heldPiece_x = scene.heldPiece_x or 8
+heldPiece_y = scene.heldPiece_y or 5
+
+-- get x,y location of where next piece should be displayed 
+--nextPiece_x = scene.nextPiece_x or 16.5
+nextPiece_y = scene.nextPiece_y or 3.5
 
 ------------------------------------------
 -- Game related functions and variables --
@@ -219,14 +257,14 @@ local levelIncreased = false
 local lostY = 1
 local lost = false
 
-local clearLines, lines, sashes = {}, {}, {}
+local clearLines, lines, effects = {}, {}, {}
 
 local holdDir = 0
 local heldPiece
 
 local pieceHasChanged = false
 
-local UITimer
+UITimer = nil
 local inert = {}
 
 local timer = 0
@@ -242,8 +280,14 @@ local forceInertGridRefresh = false
 
 local lastAction = "none"
 
-local function spawnSash(message)
-	if sash then table.insert(sashes, Sash(message)) end
+local function visualEffect(message)
+	if sash then 
+		if scene.visualEffect then
+			table.insert(effects, scene.visualEffect(message)) 
+		else
+			table.insert(effects, Sash(message)) 
+		end
+	end
 end
 
 local function canPieceMove(testX, testY, testRotation)
@@ -386,7 +430,7 @@ local function lose()
 	timer = 0
 	resetLockDelay()
 	lost = true
-	UITimer = time.new(500, 8, -4, easings.outCubic)
+	UITimer = time.new(500, heldPiece_x, -4, easings.outCubic)
 	playdate.inputHandlers.pop()
 end
 
@@ -474,43 +518,26 @@ local function lock()
 		if not allclear then break end
 	end
 
+	local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
 	for i=0, 4 do
-		local lineClearNames = {"Single", "Double", "Triple", "Playtris"}
 		if clearedLines == i then
 			scoreGoal += (10+(tspin and 20 or 0))*i * combo
 			if tspin or clearedLines >= 4 then
 				if clearedLines == 0 then
-					spawnSash("T-Spin!")
+					visualEffect("T-SPIN!")
 				else
 					stopAllComboSounds()
 					specialSound:play()
-					spawnSash((tspin and "T-Spin " or "")..lineClearNames[clearedLines])
+					visualEffect((tspin and "T-SPIN " or "")..lineClearNames[clearedLines])
 				end
 			end
 		end
 	end
 
-	--[[
-	if clearedLines == 0 then
-		-- Same points as a single.
-		stopAllComboSounds()
-		scoreGoal += 10 * combo
-		spawnSash("T-Spin Single!")
-	elseif clearedLines == 1 then
-		stopAllComboSounds()
-		scoreGoal += 20 * combo
-		spawnSash("T-Spin")
-	elseif clearedLines >= 4 then
-		stopAllComboSounds()
-		specialSound:play()
-		spawnSash((tspin and "T-Spin " or "").."Playtris!")
-		scoreGoal += (15 + (tspin and 10 or 0)) * combo
-	end
-	]]
 
 	if allclear then
 		scoreGoal += 25 * combo
-		spawnSash("All Clear!")
+		visualEffect("ALL CLEAR!")
 	end
 
 	if not completedLine then
@@ -538,7 +565,7 @@ local inputHandlers = {
 			lockDelay = 0
 			lock()
 			forceInertGridRefresh = true
-			if shake then displayYPos = dist*1.25 end
+			if shake and theme ~= "retro" then displayYPos = dist*1.25 end
 		end
 	end,
 	-- Skip the O piece when rotating.
@@ -563,7 +590,7 @@ local function reset()
 	combo, level = 1, 1
 	lostY = 1
 	lost = false
-	clearLines, lines, sashes = {}, {}, {}
+	clearLines, lines, effects = {}, {}, {}
 	holdDir = 0
 	heldPiece = nil
 	pieceHasChanged = false
@@ -572,7 +599,7 @@ local function reset()
 		screenClearNeeded = true
 	end
 
-	UITimer = time.new(500, -4, 8, easings.outCubic)
+	UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)		
 	UITimer.updateCallback = timerCallback
 	UITimer.timerEndedCallback = timerCallback
 	inert = {}
@@ -655,7 +682,13 @@ local function updateGame()
 			holdSound:play()
 		end
 
-		timer += level
+		if chill_mode then
+			-- chill mode always drops pieces at minimum speed
+			timer += 1
+		else
+			-- otherwise drop speed increases with the level
+			timer += level
+		end
 		lockDelay -= 1
 		if timer >= timerLimit then
 			refreshNeeded = true
@@ -702,23 +735,10 @@ local function updateGame()
 	end -- state machine
 end
 
-local function drawScores()
-	gfx.drawTextAligned("*Score*", (UITimer.value-2)*uiBlockSize, 9*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..math.floor(score).."*", (UITimer.value-2)*uiBlockSize, 11*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*Highscore*", (UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..highscore.."*", (UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
-end
-
-local function drawLevelInfo()
-	gfx.drawTextAligned("*Level*", dwidth-(UITimer.value-2)*uiBlockSize, 9*uiBlockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*"..level.."*", dwidth-(UITimer.value-2)*uiBlockSize, 11*uiBlockSize,kTextAlignment.center)
-	gfx.drawTextAligned("*Lines*", dwidth-(UITimer.value-2)*uiBlockSize, 13*uiBlockSize, kTextAlignment.center)
-	gfx.drawTextAligned("*"..completedLines.."*", dwidth-(UITimer.value-2)*uiBlockSize, 15*uiBlockSize, kTextAlignment.center)
-end
 
 local function drawHeldPiece() -- draw held piece
-	holdFrameImage:drawCentered((UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
-	if heldPiece then
+	
+	if heldPiece and theme ~= "retro" then
 		loopThroughBlocks(function(_, x, y)
 			local block = pieceStructures[heldPiece][1][y][x]
 			if block ~= ' ' then
@@ -730,13 +750,21 @@ local function drawHeldPiece() -- draw held piece
 end
 
 local function drawNextPiece() -- draw next piece
-	nextFrameImage:drawCentered(dwidth-(UITimer.value-2)*uiBlockSize, 5*uiBlockSize-1)
+	
 	loopThroughBlocks(function(_, x, y)
 		local nextPiece = sequence[#sequence]
 		local block = pieceStructures[nextPiece][1][y][x]
 		if block ~= ' ' then
 			local acp = nextPiece ~= 1 and nextPiece ~= 2
-			drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
+			
+			if theme == "retro" then
+				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 17 or (nextPiece == 1 and 16.5 or 16)),uiBlockSize)
+			else
+				drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y+(acp and 4 or (nextPiece == 1 and 3.5 or 3)),uiBlockSize)
+			end
+			
+			--drawBlock('*', x+(dwidth/uiBlockSize)-(UITimer.value-(acp and 0.625 or 0.125)), y + heldPiece_y +(acp and 0.5 or (nextPiece == 1 and 0 or -0.5)),uiBlockSize)
+
 		end
 	end)
 end
@@ -764,7 +792,23 @@ local function drawGame()
 			screenClearNeeded = false
 			screenWasCleared = true
 		end
-
+		
+		-- draw theme-specific elements
+		scene:draw()
+		
+		-- draw on-screen effects
+		local function updateEffect(t,i,e)
+			if e.dead then
+				pcall(function() table.remove(t, i) end)
+			else
+				e:update()
+				e:draw()
+				screenClearNeeded = true
+			end
+		end
+		
+		if #effects > 0 then	updateEffect(effects, #effects, effects[#effects]) end
+		
 		-- Update screen shake
 		if displayYPos ~= 0 then
 			refreshNeeded = true
@@ -784,18 +828,6 @@ local function drawGame()
 				displayYPos = 0
 			end
 		end
-
-		local function updateEffect(t,i,e)
-			if e.dead then
-				pcall(function() table.remove(t, i) end)
-			else
-				e:update()
-				e:draw()
-				screenClearNeeded = true
-			end
-		end
-
-		if #sashes > 0 then updateEffect(sashes, #sashes, sashes[#sashes]) end
 
 		color()
 		gfx.fillRect(
@@ -880,12 +912,13 @@ local function drawGame()
 
 		gfx.setDrawOffset(0,0)
 
-		if pieceHasChanged or screenWasCleared then
+		--DREW: COMMENTING OUT IF-STATEMENT SO THAT HELD AND NEXT PIECES ARE DRAWN EVERY DRAW CYCLE
+		--if pieceHasChanged or screenWasCleared then
 			drawHeldPiece()
 			drawNextPiece()
-			drawScores()
-			drawLevelInfo()
-		end
+			scene.drawScores(score)
+			scene.drawLevelInfo(level, completedLines) 
+		--end
 		gfx.fillRect(0, 0, 400, introRectT.value)
 
 		gfx.popContext()
@@ -972,6 +1005,7 @@ local menu = {
 			saveData("shake", shake)
 		end,
 	},
+	--[[ commenting sash option out to remove it from the options menu
 	{
 		name = "Sash",
 		type = "crossmark",
@@ -979,6 +1013,17 @@ local menu = {
 		ontoggle = function(val)
 			sash = val
 			saveData("sash", sash)
+		end,
+	},
+	]]
+	-- code to add chill mode to options menu
+	{
+		name = "Chill mode",
+		type = "crossmark",
+		state = chill_mode,
+		ontoggle = function(val)
+			chill_mode = val
+			saveData("chill_mode", chill_mode)
 		end,
 	},
 	{
@@ -1034,6 +1079,7 @@ local menu = {
 			musicVolume = val
 			saveData("music", musicVolume)
 			updateMusicVolume()
+			currentSong:setVolume(musicVolume)
 		end,
 	},
 	{
@@ -1045,6 +1091,7 @@ local menu = {
 		onchange = function(val)
 			soundsVolume = val
 			saveData("sounds", soundsVolume)
+			sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
 			updateSoundVolume(sfx)
 			updateSoundVolume(comboSounds)
 		end,
@@ -1209,12 +1256,66 @@ sysmenu:addMenuItem("restart", function()
 	end
 end)
 
+sysmenu:addOptionsMenuItem("theme", themes, theme, function(selectedTheme)
+	currentSong:stop()
+		
+	success, scene = pcall(load_theme, selectedTheme)
+	if not success then
+		print("ERROR: Could not load theme ", selectedTheme)
+		print("Check that there is a valid scene file under /themes/" .. selectedTheme .. "/" .. selectedTheme .. ".lua")
+		print("Loading default theme...")
+		selectedTheme = "default"
+		success, scene = pcall(load_theme, selectedTheme)
+		if not success then
+			print("ERROR: Could not load default theme")
+		end
+	else
+		print(selectedTheme, "loaded successfully!")
+	end
+	
+	currentSong:play(0)
+	theme = selectedTheme
+	--if theme == "chill" then visualEffect("CHILL MODE!") end
+	
+	-- get x,y location of where held piece should be displayed 
+	heldPiece_x = scene.heldPiece_x or 8
+	heldPiece_y = scene.heldPiece_y or 5
+	
+	-- get x,y location of where next piece should be displayed 
+	--nextPiece_x = scene.nextPiece_x or 16.5
+	nextPiece_y = scene.nextPiece_y or 3.5
+	
+	local function timerCallback(timer)
+		screenClearNeeded = true
+	end
+
+	UITimer = time.new(500, -4, heldPiece_x, easings.outCubic)
+	UITimer.updateCallback = timerCallback
+	UITimer.timerEndedCallback = timerCallback
+	
+	updateMusicVolume()
+	sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
+	updateSoundVolume(sfx)
+	updateSoundVolume(comboSounds)
+	currentSong:setVolume(musicVolume)
+
+	-- save theme 
+	saveData("theme", theme)
+
+end)
+
+
 function updateMusicVolume()
-	for i,v in ipairs(songs) do
+	if currentSong:getVolume() ~= musicVolume then
+		currentSong:setVolume(musicVolume)
+	end
+	--[[
+	for i,v in pairs(songs) do
 		if v:getVolume() ~= musicVolume then
 			v:setVolume(musicVolume)
 		end
 	end
+	]]
 end
 
 function updateSoundVolume(soundTable)
@@ -1226,14 +1327,13 @@ function updateSoundVolume(soundTable)
 end
 
 updateMusicVolume()
+sfx = {	specialSound, holdSound, menuScrollSound, menuClickSound, dropSound, spinSound, moveSound }
 updateSoundVolume(sfx)
 updateSoundVolume(comboSounds)
-bgmIntro:play()
+currentSong:play(0)
+currentSong:setVolume(musicVolume)
 
 function playdate.update()
-	if not bgmIntro:isPlaying() and not bgmLoop:isPlaying() then
-		bgmLoop:play(0)
-	end
 	_update()
 	_draw()
 end
@@ -1241,11 +1341,23 @@ end
 function playdate.gameWillPause()
 	
 	local img = gfx.image.new(dwidth, dheight, gfx.kColorWhite)
-	local text = "Score\n" .. math.floor(score) .. "\nHighscore\n" .. highscore .. "\nLevel\n" .. level .. "\nLines\n" .. completedLines
+	local number_x = 115
+	local text_x = 30
 	
 	gfx.lockFocus(img)
-	gfx.setFont(bold)
-	gfx.drawTextAligned(text, dwidth/4, 42, kTextAlignment.center)
+	
+	menu_background:drawIgnoringOffset(0, 0)
+
+	gfx.drawText("Level", text_x, 40)
+	gfx.drawText(level, number_x, 40)
+	gfx.drawText("Lines", text_x, 65)
+	gfx.drawText(completedLines, number_x, 65)
+
+	gfx.drawText("Score", text_x, 150)
+	gfx.drawText(math.floor(score), number_x, 150)
+	gfx.drawText("Hi Score", text_x+32, 195)
+	gfx.drawText(highscore, number_x, 210)
+
 	gfx.unlockFocus()
 
 	img:setInverted(darkMode)

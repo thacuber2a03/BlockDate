@@ -1,0 +1,5 @@
+.DS_Store
+*/.DS_store
+.nova/
+*.pdx
+support/*

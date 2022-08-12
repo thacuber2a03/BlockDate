@@ -1,7 +1,7 @@
-name=Playtris
+name=blockdate
 author=@thacuber2a03
-description=It's some random tetromino game for the Playdate console. And that's about it.
-version=1.7.0
-buildNumber=7
+description=It's some random tetromino game for the Playdate console (themed edition)
+version=2.1
+buildNumber=13
 imagePath=launcher
-bundleID=com.thacuber.tetris
+bundleID=com.thacuber.blockdate
