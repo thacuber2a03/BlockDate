@@ -7,4 +7,4 @@ All sounds made with [Dn-Famitracker](https://github.com/Dn-Programming-Core-Man
 
 Other Music by Holizna
 
-Assets by TheCuber & Zenzoa
+Assets by ThaCuber & Zenzoa
