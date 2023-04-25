@@ -1,0 +1,51 @@
+{
+	"Lua.diagnostics.globals": [
+		"playdate", "class", "kTextAlignment",
+
+		"savedData",
+		"loadData",
+		"saveData",
+		"commmitSaveData",
+		"highscore",
+		"gridXCount", "gridYCount",
+		"pieceXCount", "pieceYCount",
+		"uiBlockSize",
+		"defaultBlockSize",
+		"bigBlockSize",
+		"blockSize",
+		"drawBlock",
+		"drawTexturedBlock",
+		"loopThroughPieceBlocks",
+		"maxLockDelayRotations",
+
+		"shake", "sash", "ghost", "grid", "darkMode", "inverseRotation",
+		"musicVolume", "soundsVolume", "bigBlocks", "chill_mode",
+
+		"offsetX", "offsetY",
+		"menuBackground",
+		"piece",
+
+		"lost",
+		"updateGame", "drawGame",
+		"updateMenu", "drawMenu",
+		"_update", "_draw",
+
+		"crossmarkFieldImage",
+		"ghostBlockImagetable",
+		"ghostBlockImagetableBig",
+		
+		"gridImage", "gridImageBig",
+		"inertGridImage", "inertGridImageBig",
+		"menuBackground",
+
+		"comboSounds",
+		"currentSong",
+		"dropSound", "specialSound", "holdSound", "spinSound", "moveSound",
+		"menuScrollSound", "menuClickSound",
+		"sfx",
+
+		"load_theme", "generate_theme_list"
+	],
+	"Lua.workspace.library": [ "$PLAYDATE_SDK_PATH/CoreLibs/__stub.lua", ],
+	"Lua.runtime.special": { "import": "require" },
+}
