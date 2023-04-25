@@ -1,5 +1,8 @@
 @echo off
-"%PLAYDATE_SDK_PATH%\pdc" .\src\ .\Playtris.pdx
-if /i %1=="run" (
-	"%PLAYDATE_SDK_PATH%\PlaydateSimulator" .\Playtris.pdx
-)
+
+set PDC="%PLAYDATE_SDK_PATH%\bin\pdc"
+set SIM="%PLAYDATE_SDK_PATH%\bin\PlaydateSimulator"
+set PDCFLAGS=-k
+
+%PDC% %PDCFLAGS% .\src\ .\Playtris.pdx
+if /i %1=="run" ( %SIM% .\Playtris.pdx )
