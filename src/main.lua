@@ -707,7 +707,7 @@ function drawGame()
 			end
 		end)
 
-		-- if you want to deactivate an if statement, do it well
+		--NOTE(thacuber2a03): if you want to deactivate an if statement, do it well
 		--if piece.type == IPIECE and false then
 		if false and piece.type == IPIECE then
 			GFX.setColor(GFX.kColorXOR)
