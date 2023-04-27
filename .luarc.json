@@ -30,6 +30,7 @@
 		"updateMenu", "drawMenu",
 		"_update", "_draw",
 
+		"crossmarkImage",
 		"crossmarkFieldImage",
 		"ghostBlockImagetable",
 		"ghostBlockImagetableBig",
@@ -44,7 +45,11 @@
 		"menuScrollSound", "menuClickSound",
 		"sfx",
 
-		"load_theme", "generate_theme_list"
+		"load_theme", "generate_theme_list",
+
+		"inputHandlers",
+		
+		"refreshNeeded", "screenClearNeeded", "forceInertGridRefresh"
 	],
 	"Lua.workspace.library": [ "$PLAYDATE_SDK_PATH/CoreLibs/__stub.lua", ],
 	"Lua.runtime.special": { "import": "require" },

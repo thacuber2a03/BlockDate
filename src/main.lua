@@ -101,9 +101,9 @@ local lockDelay = 15
 local score = 0
 local scoreGoal = score
 
-local refreshNeeded = true
-local screenClearNeeded = false
-local forceInertGridRefresh = false
+refreshNeeded = true
+screenClearNeeded = false
+forceInertGridRefresh = false
 
 local lastAction = "none"
 
@@ -365,7 +365,7 @@ local function lock()
 	if not canPieceMove(piece.x, piece.y, piece.rotation) then lose() end
 end -- lock function
 
-local inputHandlers = {
+inputHandlers = {
 	upButtonDown = function()
 		if not lost then
 			local dist = 0
