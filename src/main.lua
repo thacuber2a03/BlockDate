@@ -88,6 +88,7 @@ local heldPiece
 ---@diagnostic disable-next-line: need-check-nil
 local heldPiece_x = scene.heldPiece_x or 8
 local hasHeldPiece = false
+local heldBothButtons = false
 
 local pieceHasChanged = false
 
@@ -178,8 +179,9 @@ local function rotate(rotation)
 
 	-- TODO(thacuber2a03): temporary solve until I can figure out how to compact it
 	-- TODO(thacuber2a03): still don't know how to compact it, might have to refactor piece.rotation
-	local chosenRotation = 1
+	local chosenRotation
 	if rotation == 1 then
+		if piece.rotation == 0 then chosenRotation = 1 end
 		if piece.rotation == 1 then chosenRotation = 2 end
 		if piece.rotation == 2 then chosenRotation = 3 end
 		if piece.rotation == 3 then chosenRotation = 4 end
@@ -382,12 +384,14 @@ inputHandlers = {
 		end
 	end,
 	AButtonDown = function()
+		if PD.buttonIsPressed "b" then return end
 		if not lost then
 			if piece.type ~= OPIECE then rotate(inverseRotation and -1 or 1)
 			else spinSound:play() end -- give the illusion that the o piece is rotating
 		end
 	end,
 	BButtonDown = function()
+		if PD.buttonIsPressed "a" then return end
 		if not lost then
 			if piece.type ~= OPIECE then rotate(inverseRotation and 1 or -1)
 			else spinSound:play() end -- read above
@@ -472,19 +476,30 @@ function updateGame()
 		elseif PD.buttonIsPressed("left") then holdDirection(-1)
 		else holdDir = 0 end
 
-		if (PD.buttonIsPressed("a") and PD.buttonIsPressed("b")) and not hasHeldPiece then
-			local nextType
-			if not heldPiece then
-				heldPiece = piece.type
-				nextType = table.remove(sequence)
+		local current, _, released = PD.getButtonState()
+		if current == (PD.kButtonA | PD.kButtonB) and not heldBothButtons then
+			if not hasHeldPiece then
+				local nextType
+				if not heldPiece then
+					heldPiece = piece.type
+					nextType = table.remove(sequence)
+				else
+					-- the mighty swap
+					local temp = heldPiece
+					heldPiece = piece.type
+					nextType = temp
+				end
+				newPiece(nextType)
+				hasHeldPiece = true
+				holdSound:play()
 			else
-				local temp = heldPiece
-				heldPiece = piece.type
-				nextType = temp
+				holdFailSound:play()
 			end
-			newPiece(nextType)
-			hasHeldPiece = true
-			holdSound:play()
+			heldBothButtons = true
+		elseif (released & (PD.kButtonA | PD.kButtonB)) ~= 0 then
+			-- if either or both buttons are released
+			-- bitwise magic, I know
+			heldBothButtons = false
 		end
 
 		if chill_mode then
@@ -867,7 +882,7 @@ function PD.deviceWillSleep() commitSaveData() end
 -----------
 
 function PD.keyPressed(key)
-	if key == "L" then
+	if key == "l" then
 		forceInertGridRefresh = true
 		for _=1, 4 do table.remove(inert) end
 		for _=1, 4 do
@@ -880,7 +895,7 @@ function PD.keyPressed(key)
 				return almostFull
 			end)())
 		end
-	elseif key == "T" then
+	elseif key == "t" then
 		forceInertGridRefresh = true
 		-- generate a TSpin scenario
 		for _=1, 5 do table.remove(inert) end
@@ -889,7 +904,7 @@ function PD.keyPressed(key)
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})
 		table.insert(inert, {"*", "*", "*", " ", " ", " ", "*", "*", "*", "*"})
-	elseif key == "D" then
+	elseif key == "d" then
 		forceInertGridRefresh = true
 		for _=1, 3 do table.remove(inert) end
 		table.insert(inert, {"*", "*", "*", "*", " ", " ", "*", "*", "*", "*"})

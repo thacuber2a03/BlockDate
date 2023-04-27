@@ -12,7 +12,7 @@ DWIDTH, DHEIGHT = DISP.getWidth(), DISP.getHeight()
 IPIECE, OPIECE, JPIECE, LPIECE, TPIECE, SPIECE, ZPIECE = 1, 2, 3, 4, 5, 6, 7
 
 -- Taken from https://harddrop.com/wiki/SRS
--- and tuned into a lua table
+-- and turned into a lua table
 
 -- `name` is a debug field
 

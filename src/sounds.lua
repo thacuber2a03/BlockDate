@@ -36,15 +36,15 @@ end
 dropSound = loadSound("drop")
 specialSound = loadSound("special")
 holdSound = loadSound("hold")
+holdFailSound = loadSound "holdfail"
 spinSound = loadSound("spin")
 moveSound = loadSound("movetrimmed")
 menuScrollSound = loadSound("menu/menu-scroll")
 menuClickSound = loadSound("menu/menu-click")
 
-
 sfx = {
 	specialSound,
-	holdSound,
+	holdSound, holdFailSound,
 	menuScrollSound, menuClickSound,
 	dropSound, spinSound, moveSound,
 }
