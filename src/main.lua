@@ -180,17 +180,7 @@ local function rotate(rotation)
 	-- TODO(thacuber2a03): temporary solve until I can figure out how to compact it
 	-- TODO(thacuber2a03): still don't know how to compact it, might have to refactor piece.rotation
 	local chosenRotation
-	if rotation == 1 then
-		if piece.rotation == 0 then chosenRotation = 1 end
-		if piece.rotation == 1 then chosenRotation = 2 end
-		if piece.rotation == 2 then chosenRotation = 3 end
-		if piece.rotation == 3 then chosenRotation = 4 end
-	else
-		if piece.rotation == 0 then chosenRotation = 4 end
-		if piece.rotation == 1 then chosenRotation = 1 end
-		if piece.rotation == 2 then chosenRotation = 2 end
-		if piece.rotation == 3 then chosenRotation = 3 end
-	end
+	chosen.rotation = piece.rotation % 4 + rotation
 
 	--assert(testRotation+1 == chosenRotation,
 	--	"Correct rotation and actual rotation aren't equal.\nChosen rotation: "..chosenRotation.."\nActual rotation: "..testRotation+1)
