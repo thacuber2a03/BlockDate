@@ -1,5 +1,5 @@
 # BlockDate
-A random tetrimino game made for the Playdate console.
+A random falling-block game made for the Playdate console.
 
 ---
 
