@@ -1,0 +1,2 @@
+introFrames = 5x3
+frames = 1x15, 2x15, 3x15, 4x15
