@@ -4,3 +4,4 @@
 *.pdx
 *.zip
 support/*
+.vscode
