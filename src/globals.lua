@@ -7,7 +7,7 @@ savedData = DATA.read("gamedata") or {}
 function loadData(key, defaultValue)
 	local saved = savedData[key]
 	if saved == nil then
-		return default
+		return defaultValue
 	end
 
 	return saved
