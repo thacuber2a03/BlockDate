@@ -219,25 +219,6 @@ local function rotate(rotation)
 	spinSound:play()
 end
 
-local function handleCrankRotation()
-	local ticksPerRevolution = 4
-	local tick = PD.getCrankTicks(ticksPerRevolution)
-
-	if tick == 0 then
-		return
-	end
-
-	if piece.type == OPIECE then
-		return
-	end
-
-	if inverseRotation then
-		tick *= -1
-	end
-
-	rotate(tick)
-end
-
 local function resetLockDelay()
 	lockDelayRotationsRemaining = maxLockDelayRotations
 	lockDelay = 15
@@ -496,7 +477,10 @@ function updateGame()
 		elseif PD.buttonIsPressed("left") then holdDirection(-1)
 		else holdDir = 0 end
 
-		handleCrankRotation()
+		local crankTicks = PD.getCrankTicks(4)
+		if crankTicks ~= 0 and piece.type ~= OPIECE then
+			rotate(crankTicks * (inverseRotation and -1 or 1))
+		end
 
 		local current, _, released = PD.getButtonState()
 		if current == (PD.kButtonA | PD.kButtonB) and not heldBothButtons then
