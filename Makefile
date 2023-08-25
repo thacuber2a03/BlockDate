@@ -4,9 +4,11 @@ PDC="$(PLAYDATE_SDK_PATH)/bin/pdc"
 SIM="$(PLAYDATE_SDK_PATH)/bin/PlaydateSimulator"
 PDCFLAGS=-k
 
-main:
-	$(PDC) $(PDCFLAGS) ./src ./Playtris.pdx
+IN="./src"
+OUT="./BlockDate.pdx"
 
-run:
-	$(PDC) $(PDCFLAGS) ./src ./Playtris.pdx
-	$(SIM) ./Playtris.pdx
+main:
+	$(PDC) $(PDCFLAGS) $(IN) $(OUT)
+
+run: main
+	$(SIM) $(OUT)
