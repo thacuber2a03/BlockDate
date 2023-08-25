@@ -22,6 +22,7 @@
 
 import "CoreLibs/graphics"
 import "CoreLibs/timer"
+import "CoreLibs/crank"
 
 import "globals"
 import "utils"
@@ -216,6 +217,25 @@ local function rotate(rotation)
 
 	updateGhost()
 	spinSound:play()
+end
+
+local function handleCrankRotation()
+	local ticksPerRevolution = 4
+	local tick = PD.getCrankTicks(ticksPerRevolution)
+
+	if tick == 0 then
+		return
+	end
+
+	if piece.type == OPIECE then
+		return
+	end
+
+	if inverseRotation then
+		tick *= -1
+	end
+
+	rotate(tick)
 end
 
 local function resetLockDelay()
@@ -475,6 +495,8 @@ function updateGame()
 		if PD.buttonIsPressed("right") then holdDirection(1)
 		elseif PD.buttonIsPressed("left") then holdDirection(-1)
 		else holdDir = 0 end
+
+		handleCrankRotation()
 
 		local current, _, released = PD.getButtonState()
 		if current == (PD.kButtonA | PD.kButtonB) and not heldBothButtons then

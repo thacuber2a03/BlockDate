@@ -4,7 +4,15 @@ import "constants"
 -- If there's no game DATA available make some
 savedData = DATA.read("gamedata") or {}
 
-function loadData(key) return savedData[key] end
+function loadData(key, defaultValue)
+	local saved = savedData[key]
+	if saved == nil then
+		return defaultValue
+	end
+
+	return saved
+end
+
 function saveData(key, value) savedData[key] = value end
 
 function commitSaveData()
@@ -31,12 +39,12 @@ maxLockDelayRotations = 15
 	bigBlocks,
 	chill_mode
 =
-	loadData("shake") or true, loadData("sash") or true, loadData("ghost") or true,
-	loadData("grid") or false, loadData("darkMode") or false,
-	loadData("inverseRotation") or false,
-	loadData("music") or 1, loadData("sounds") or 1,
-	loadData("bigBlocks") or false,
-	loadData("chill_mode") or false
+	loadData("shake", true), loadData("sash", true), loadData("ghost", true),
+	loadData("grid", false), loadData("darkMode", false),
+	loadData("inverseRotation", false),
+	loadData("music", 1), loadData("sounds", 1),
+	loadData("bigBlocks", false),
+	loadData("chill_mode", false)
 
 if bigBlocks then
 	blockSize = bigBlockSize
