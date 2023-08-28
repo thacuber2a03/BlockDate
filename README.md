@@ -3,11 +3,14 @@ A random falling-block game made for the Playdate console.
 
 ## How to play
 
-Left / Right: Move piece
-Down: Soft drop piece
-Up: Hard drop piece
-A / B: Rotate left/right
-A + B: Hold piece
+| Button       | Action            |
+| ------------ | ----------------- |
+| Left / Right | Move piece        |
+| Down         | Soft drop piece   |
+| Up           | Hard drop piece   |
+| A / B        | Rotate left/right |
+| A + B        | Hold piece        |
+
 Can also rotate with crank (yeah, it's back)
 
 ## Building
@@ -16,4 +19,5 @@ You can also use Nova and VS Code. I am however unaware of how their build tools
 
 ## Acknowledgements
 Default theme made by [me](https://github.com/thacuber2a03), with all sounds done on [Dn-Famitracker](https://github.com/Dn-Programming-Core-Management/Dn-FamiTracker) by [Dn Programming Core Management (D.P.C.M)](https://github.com/Dn-Programming-Core-Management/) (funny chiptune joke).
+Retro theme (and basically the entire theme engine) made by [Drew-Lo](https://github.com/aloebach).
 Chill theme assets by [SG](https://github.com/zenzoa), with music by Holizna.
