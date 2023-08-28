@@ -1,6 +1,15 @@
 # BlockDate
 A random falling-block game made for the Playdate console.
 
+## How to play
+
+Left / Right: Move piece
+Down: Soft drop piece
+Up: Hard drop piece
+A / B: Rotate left/right
+A + B: Hold piece
+Can also rotate with crank (yeah, it's back)
+
 ## Building
 Clone or download the repository and call `make`. `make run` to run the game in the simulator. In Windows, call `build.bat`.
 You can also use Nova and VS Code. I am however unaware of how their build tools work as I don't use either of them.
