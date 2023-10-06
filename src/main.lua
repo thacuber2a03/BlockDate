@@ -108,6 +108,8 @@ screenClearNeeded = false
 forceInertGridRefresh = false
 
 local lastAction = "none"
+local showGameOver = true
+local gameOverDelay = 2000
 
 local function visualEffect(message)
 	if sash then
@@ -451,6 +453,33 @@ function drawTexturedBlock(image, x, y, size)
 	image:draw((x-1)*size, (y-1)*size)
 end
 
+local function drawGameOver()
+
+	if theme ~= "default" then return end
+
+	local rectColor = GFX.kColorBlack
+	GFX.setImageDrawMode("fillWhite")
+
+	if darkMode then
+		rectColor = GFX.kColorWhite
+		GFX.setImageDrawMode("fillBlack")
+	end
+
+	if bigBlocks then
+		GFX.setColor(rectColor)
+		GFX.fillRect(135, 3, 130, 26)
+		GFX.drawText("Game Over", 160, 8, kTextAlignment.center)
+	else
+		GFX.setColor(rectColor)
+		GFX.fillRect(145, 20, 110, 26)
+		GFX.drawText("Game Over", 160, 24, kTextAlignment.center)
+	end
+
+	GFX.setImageDrawMode("copy")
+	PD.wait(gameOverDelay)
+	showGameOver = false
+end
+
 reset()
 
 function updateGame()
@@ -544,6 +573,9 @@ function updateGame()
 		end -- timer is over timerLimit
 	else
 		refreshNeeded = true
+		if showGameOver then
+			drawGameOver()
+		end
 		if not e then
 			inert[lostY] = {}
 			for i=1, gridXCount do inert[lostY][i] = ' ' end
@@ -554,6 +586,7 @@ function updateGame()
 		else
 			if #lines == 0 then
 				e = false
+				showGameOver = true
 				commitSaveData()
 				reset()
 			end
