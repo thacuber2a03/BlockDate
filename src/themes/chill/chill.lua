@@ -144,6 +144,11 @@ local scene = {
 
 		-- return our effect object
 		return effect
+	end,
+
+	drawGameOver = function(gameOverDelay)
+		-- draw game over banner
+		-- PD.wait(gameOverDelay)
 	end
 }
 

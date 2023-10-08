@@ -68,6 +68,27 @@ local scene = {
 				end
 			end)
 		end
+	end,
+
+	drawGameOver = function(gameOverDelay)
+		-- draw game over banner
+		local rectColor = GFX.kColorBlack
+		GFX.setImageDrawMode("fillWhite")
+		if darkMode then
+			rectColor = GFX.kColorWhite
+			GFX.setImageDrawMode("fillBlack") 
+		end
+		if bigBlocks then
+			GFX.setColor(rectColor)
+			GFX.fillRect(135, 3, 130, 26)
+			GFX.drawText("Game Over", 160, 8, kTextAlignment.center)
+		else
+			GFX.setColor(rectColor)
+			GFX.fillRect(145, 20, 110, 26)
+			GFX.drawText("Game Over", 160, 24, kTextAlignment.center)
+		end
+		GFX.setImageDrawMode("copy")
+		PD.wait(gameOverDelay)
 	end
 }
 
