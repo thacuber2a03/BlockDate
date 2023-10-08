@@ -108,6 +108,8 @@ screenClearNeeded = false
 forceInertGridRefresh = false
 
 local lastAction = "none"
+local showGameOver = true
+local gameOverDelay = 2000
 
 local function visualEffect(message)
 	if sash then
@@ -411,6 +413,7 @@ local function reset()
 	holdDir = 0
 	heldPiece = nil
 	pieceHasChanged = false
+	showGameOver = true
 
 	local function timerCallback() screenClearNeeded = true end
 
@@ -544,11 +547,14 @@ function updateGame()
 		end -- timer is over timerLimit
 	else
 		refreshNeeded = true
+		if showGameOver then
+			scene.drawGameOver(gameOverDelay)
+			showGameOver = false
+		end
 		if not e then
 			inert[lostY] = {}
 			for i=1, gridXCount do inert[lostY][i] = ' ' end
 			table.insert(lines, EndLine((lostY-1)+offsetY))
-
 			if lostY < gridYCount then lostY = lostY + 1
 			else e = true end
 		else
