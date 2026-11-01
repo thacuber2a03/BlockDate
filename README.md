@@ -1,3 +1,6 @@
+> [!WARNING]
+> Archival notice: I lost interest in this game a long time ago.
+
 # BlockDate
 A random falling-block game made for the Playdate console.
 
